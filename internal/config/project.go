@@ -45,6 +45,8 @@ func FindProjectConfig(startDir string) (string, error) {
 		candidate := filepath.Join(dir, projectConfigFilename)
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate, nil
+		} else if !os.IsNotExist(err) {
+			return "", fmt.Errorf("cannot stat %q: %w", candidate, err)
 		}
 
 		parent := filepath.Dir(dir)

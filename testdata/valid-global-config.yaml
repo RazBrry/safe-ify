@@ -1,0 +1,10 @@
+instances:
+  my-coolify:
+    url: https://coolify.example.com
+    token: supersecrettoken123
+  staging:
+    url: https://staging.example.com
+    token: stagingtoken456
+defaults:
+  permissions:
+    deny: []

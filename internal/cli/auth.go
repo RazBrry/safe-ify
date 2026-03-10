@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -130,8 +129,7 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 	// Validate token via healthcheck.
 	fmt.Println(tui.InfoStyle.Render("Validating token..."))
 	if err := validateToken(values.URL, values.Token); err != nil {
-		fmt.Fprintln(os.Stderr, tui.ErrorStyle.Render("Token validation failed: "+err.Error()))
-		os.Exit(1)
+		return fmt.Errorf("token validation failed: %w", err)
 	}
 
 	// Load or create global config.

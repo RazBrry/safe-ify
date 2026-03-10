@@ -1,0 +1,4 @@
+instance: my-coolify
+app_uuid: hgkks00abc123
+permissions:
+  deny: []
