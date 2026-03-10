@@ -16,7 +16,7 @@
 | T12 | S3 | Implement agent commands (deploy/redeploy/logs/status/list) | Implementer | Sonnet | 04-cli-commands, 03-arch | internal/cli/deploy.go, redeploy.go, logs.go, status.go, list.go, output.go | AC1: all 5 commands produce valid JSON envelope; AC2: permission check before API call | Done |
 | T13 | S3 | Review API client + agent commands (S3 code) | Code Quality Reviewer | Opus | T11+T12 output, 03-arch, 04-cli-commands, 08-api-matrix | verdict | AC: no blocking issues | Done |
 | T14 | S3 | Test API client + agent commands (S3 tests) | Tester | Sonnet | T11+T12 output, 05-ops | internal/coolify/*_test.go, internal/cli/*_test.go | AC: integration tests with mocked API pass for all 5 endpoints | Done |
-| T15 | S3 | [GATE] Slice S3 approval | -- | -- | -- | -- | User says GO | Pending |
+| T15 | S3 | [GATE] Slice S3 approval | -- | -- | -- | -- | User says GO | In Progress |
 | T16 | S4 | Implement audit logging | Implementer | Sonnet | 03-arch | internal/audit/ | AC1: agent commands write audit log entries; AC2: format matches spec | Pending |
 | T17 | S4 | Implement doctor command | Implementer | Sonnet | 04-cli-commands | internal/cli/doctor.go | AC1: validates setup; AC2: outputs valid CLAUDE.md markdown snippet; AC3: exit code 0 on success, 1 on failure | Pending |
 | T18 | S4 | Review audit + doctor (S4 code) | Code Quality Reviewer | Opus | T16+T17 output, 03-arch, 04-cli-commands | verdict | AC: no blocking issues | Pending |
