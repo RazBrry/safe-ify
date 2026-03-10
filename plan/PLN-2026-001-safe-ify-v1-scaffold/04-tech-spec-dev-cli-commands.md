@@ -96,7 +96,7 @@ All agent commands share this startup sequence:
 
 **Flags:** `--json`, `--force`
 
-**API call:** `GET /api/v1/deploy?uuid={app_uuid}` (add `&force=true` if `--force`).
+**API call:** `POST /api/v1/deploy` with query parameters `uuid={app_uuid}` (add `&force=true` if `--force`). POST is used because deploy is a side-effecting operation (see D11).
 
 **Response mapping:**
 ```json
@@ -113,7 +113,7 @@ All agent commands share this startup sequence:
 
 **Flags:** `--json`
 
-**API call:** `GET /api/v1/applications/{app_uuid}/restart`
+**API call:** `POST /api/v1/applications/{app_uuid}/restart`. POST is used because restart is a side-effecting operation (see D11).
 
 **Response mapping:**
 ```json
@@ -186,7 +186,7 @@ All agent commands share this startup sequence:
 }
 ```
 
-Note: `list` does not require a project config. It uses the global config's first instance or requires `--instance` flag.
+Note: `list` requires a project config, like all other agent commands. It follows the same startup sequence (section 4 above): load project config, load global config, resolve permissions, check `list` permission. If no project config is found, it errors with "No project config found. Run `safe-ify init` first." This ensures project-level denial of `list` is always respected.
 
 ## 5. Doctor Command
 

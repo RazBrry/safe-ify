@@ -18,6 +18,9 @@ Owner: Planner (Opus)
 | D8 | Charm `huh` for forms, `lipgloss` for styled output |
 | D9 | YAML config format using `gopkg.in/yaml.v3` |
 | D10 | Project config: parent directory traversal (like .git discovery) |
+| D11 | POST for side-effecting operations (deploy, restart); GET only for reads |
+| D12 | `list` command requires project config, same as all agent commands |
+| D13 | Secret isolation enforced by tool output contract, not filesystem access |
 
 ## Deliverable -> Files Map
 

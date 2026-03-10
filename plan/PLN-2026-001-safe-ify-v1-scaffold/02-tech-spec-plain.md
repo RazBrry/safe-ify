@@ -64,7 +64,7 @@ There are three layers:
 | Risk | Mitigation |
 |------|------------|
 | **Token stored on disk** | File permissions enforced at 0600; safe-ify refuses to run if permissions are too open. |
-| **Agent could edit config files directly** | Config files are not in the project directory. The global config requires filesystem-level access the agent should not have. |
+| **Agent could access tokens via safe-ify output** | Secret isolation is enforced structurally by the tool's output contract: tokens are never printed to stdout/stderr, never included in JSON output, never logged in audit entries, and never appear in doctor output. The tool itself never exposes tokens in any output channel, regardless of filesystem access. |
 | **Coolify API changes** | Pinned to v4.0.0-beta.460 API. Version check in `doctor` command. |
 | **No rate limiting** | Relies on Coolify's built-in rate limiting (HTTP 429). safe-ify surfaces the error. |
 | **Audit log grows unbounded** | Acceptable for v1. Log rotation is out of scope. |

@@ -39,21 +39,65 @@ Automated agent that invokes safe-ify commands non-interactively. Requires `--js
 2. Tool loads `.safe-ify.yaml` from current directory (or parent traversal).
 3. Resolves instance credentials from global config.
 4. Checks permissions: is `deploy` allowed for this project?
-5. If allowed: calls Coolify API `GET /api/v1/deploy?uuid={uuid}`.
-6. Returns JSON: `{"status": "ok", "deployment_uuid": "..."}` or error.
+5. If allowed: calls Coolify API `POST /api/v1/deploy` with `uuid={uuid}`.
+6. Returns JSON:
+```json
+{
+  "ok": true,
+  "data": {
+    "message": "Deployment queued.",
+    "deployment_uuid": "dep-uuid-123"
+  },
+  "error": null
+}
+```
+Or on error:
+```json
+{
+  "ok": false,
+  "data": null,
+  "error": {
+    "code": "PERMISSION_DENIED",
+    "message": "Command 'deploy' is not permitted for this project."
+  }
+}
+```
 
 ### 2.5 Agent Log Retrieval (Agent)
 
 1. Agent runs `safe-ify logs --json --tail 100`.
 2. Permission check: is `logs` allowed?
 3. Calls `GET /api/v1/applications/{uuid}/logs?tail=100`.
-4. Returns JSON with log lines.
+4. Returns JSON:
+```json
+{
+  "ok": true,
+  "data": {
+    "lines": ["log line 1", "log line 2"],
+    "count": 2
+  },
+  "error": null
+}
+```
 
 ### 2.6 Agent Status Check (Agent)
 
 1. Agent runs `safe-ify status --json`.
 2. Calls `GET /api/v1/applications/{uuid}` and extracts status fields.
-3. Returns JSON with deployment status.
+3. Returns JSON:
+```json
+{
+  "ok": true,
+  "data": {
+    "uuid": "app-uuid",
+    "name": "my-app",
+    "status": "running",
+    "fqdn": "https://app.example.com",
+    "last_deployment": "2026-03-10T12:00:00Z"
+  },
+  "error": null
+}
+```
 
 ### 2.7 Doctor (Human or Agent)
 
@@ -103,7 +147,7 @@ This means: for this project, the agent can only use `logs`, `status`, `list`.
 instances:
   my-coolify:
     url: "https://coolify.example.com"
-    token: "3|WaobqX9tJQshKPuQFHsyApxuOOggg4wOfvGc9xa233c376d7"
+    token: "<your-coolify-token>"
 defaults:
   permissions:
     deny: []  # nothing denied globally by default
@@ -147,7 +191,7 @@ No secrets. Safe to commit.
 | `safe-ify status` | Check deployment status | `--json` |
 | `safe-ify list` | List applications | `--json` |
 
-All agent commands output JSON when `--json` is passed. Without `--json`, they output human-readable text.
+All agent commands require a project config (`.safe-ify.yaml`) and respect project-level permissions. All output JSON when `--json` is passed; without `--json`, they output human-readable text. All output uses the standard `{ok, data, error}` envelope (see D6).
 
 ### 5.3 Utility
 

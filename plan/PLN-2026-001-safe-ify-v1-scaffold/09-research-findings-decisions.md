@@ -67,7 +67,7 @@
 1. Map `deploy` to `/deploy` and `redeploy` to `/restart` -- clear distinction.
 2. Use only `/deploy` for both -- loses the "restart without rebuild" capability.
 
-**Decision:** `safe-ify deploy` maps to `GET /api/v1/deploy?uuid={uuid}` (new deployment with build). `safe-ify redeploy` maps to `GET /api/v1/applications/{uuid}/restart` (restart/recreate containers without rebuild).
+**Decision:** `safe-ify deploy` maps to `POST /api/v1/deploy?uuid={uuid}` (new deployment with build). `safe-ify redeploy` maps to `POST /api/v1/applications/{uuid}/restart` (restart/recreate containers without rebuild). POST used for both per D11.
 **Consequences:** Deploy triggers a full build; redeploy only restarts. Force flag available on deploy for cache bypass.
 
 ---
@@ -138,3 +138,42 @@
 
 **Decision:** Parent traversal by default (search current dir, then parent, up to filesystem root). Override with `--project` flag.
 **Consequences:** `LoadProject()` implements upward directory walk.
+
+---
+
+### D11: POST for Side-Effecting API Operations
+
+**Date:** 2026-03-10
+**Context:** Coolify API documentation lists both GET and POST as accepted methods for deploy and restart endpoints. Need to choose the correct HTTP method for safe-ify.
+**Options considered:**
+1. GET for deploy/restart -- matches some Coolify API documentation examples. Cons: violates RESTful convention; GET must be safe and idempotent per RFC 7231.
+2. POST for deploy/restart -- correct RESTful semantics for side-effecting operations.
+
+**Decision:** Use POST for deploy (`/api/v1/deploy`) and restart (`/api/v1/applications/{uuid}/restart`). GET is used only for read operations (healthcheck, version, list, get, logs). The Coolify API accepts POST for these endpoints.
+**Consequences:** All API call specs and the API matrix updated to specify POST for deploy and restart. The Coolify client `doRequest` helper must pass the correct method per operation.
+
+---
+
+### D12: `list` Command Requires Project Config
+
+**Date:** 2026-03-10
+**Context:** The `list` command was initially specified to work without a project config, using the global config directly. However, this bypasses project-level denial of the `list` command, breaking the deny-only permission model (D3).
+**Options considered:**
+1. Allow `list` without project config -- convenient but creates a permission bypass.
+2. Require project config for `list` -- consistent with all other agent commands, respects project-level deny lists.
+
+**Decision:** `list` follows the same startup sequence as all other agent commands: load project config, load global config, resolve permissions, check `list` permission. If no project config is found, error with "No project config found. Run `safe-ify init` first."
+**Consequences:** All agent commands have a uniform startup sequence. Project-level denial of `list` is always enforced. The `--instance` flag on `list` is removed; the instance comes from project config like all other commands.
+
+---
+
+### D13: Token Output Contract for Secret Isolation
+
+**Date:** 2026-03-10
+**Context:** Security of token handling was described in terms of filesystem access restrictions, which is insufficient -- the tool itself must guarantee tokens never appear in any output channel.
+**Options considered:**
+1. Rely on filesystem access controls -- insufficient; does not prevent the tool from leaking tokens in its own output.
+2. Enforce at the tool's output boundary -- tokens are structurally never included in stdout, stderr, JSON output, or audit log.
+
+**Decision:** Secret isolation is enforced by the tool's output contract: tokens are never printed, never included in JSON output, never logged in audit entries. The tool itself never exposes tokens in any output channel. This is enforced structurally in the code (token field is never passed to any output/logging function).
+**Consequences:** Security does not depend on filesystem access restrictions alone. The tool's output guarantee is testable and verifiable.

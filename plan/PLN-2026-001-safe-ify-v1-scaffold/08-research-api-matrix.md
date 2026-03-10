@@ -7,7 +7,7 @@
 | Base URL | `http(s)://<host>:8000/api/v1` |
 | Auth method | Bearer token in `Authorization` header |
 | Token source | Coolify UI: Keys & Tokens > API tokens |
-| Token format | `<id>\|<random-string>` (e.g., `3\|WaobqX9tJQshK...`) |
+| Token format | `<id>\|<random-string>` (e.g., `3\|sk-example-not-a-real-token...`) |
 | Token scope | Team-scoped; can only access owning team's resources |
 | API version | v1 (OpenAPI 3.1 spec) |
 | Content-Type | `application/json` |
@@ -45,8 +45,10 @@
 
 | Endpoint | Method | Path | Parameters | Response | safe-ify usage |
 |----------|--------|------|------------|----------|----------------|
-| Deploy | GET or POST | `/api/v1/deploy` | `?uuid=<string>`, `?force=<bool>`, `?tag=<string>` | `{"deployments": [{"message": "...", "resource_uuid": "...", "deployment_uuid": "..."}]}` | `deploy` command |
-| Restart | GET or POST | `/api/v1/applications/{uuid}/restart` | none | Restart confirmation | `redeploy` command |
+| Deploy | POST | `/api/v1/deploy` | `?uuid=<string>`, `?force=<bool>`, `?tag=<string>` | `{"deployments": [{"message": "...", "resource_uuid": "...", "deployment_uuid": "..."}]}` | `deploy` command |
+| Restart | POST | `/api/v1/applications/{uuid}/restart` | none | Restart confirmation | `redeploy` command |
+
+> **Note:** The Coolify API documentation may list GET as an accepted method for deploy and restart. safe-ify uses POST exclusively for these side-effecting operations per RESTful convention (see D11).
 
 ### 3.4 Deployment Tracking (informational)
 

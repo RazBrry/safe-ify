@@ -141,7 +141,31 @@ Test fixtures in `testdata/` directory:
 - [ ] Reviewer verdict: PASS.
 - [ ] Tester verdict: PASS.
 
-## 6. Definition of Done (DoD) -- per slice
+## 6. Environment & Secrets Inventory
+
+> **This is the single authoritative table for all configuration, secrets, and file locations required to operate safe-ify.**
+
+| Item | Location / Key | Type | Description | Set by |
+|------|---------------|------|-------------|--------|
+| Coolify API URL | `~/.config/safe-ify/config.yaml` → `instances.<name>.url` | Secret config | Full URL (incl. protocol) of the Coolify instance | `safe-ify auth add` (TUI) |
+| Coolify API Token | `~/.config/safe-ify/config.yaml` → `instances.<name>.token` | Secret | Bearer token with `read` + `deploy` abilities | `safe-ify auth add` (TUI) |
+| Global deny list | `~/.config/safe-ify/config.yaml` → `defaults.permissions.deny` | Config | Agent commands denied globally | Manual edit |
+| Global config file | `~/.config/safe-ify/config.yaml` | File (0600) | All instance credentials and global settings | `safe-ify auth add/remove` |
+| Global config directory | `~/.config/safe-ify/` | Directory (0700) | Parent directory for global config and audit log | Created automatically |
+| Project config file | `.safe-ify.yaml` (project root) | File (0644) | Instance reference, app UUID, project deny list. No secrets. | `safe-ify init` |
+| Audit log | `~/.config/safe-ify/audit.log` | File (0600) | Append-only pipe-delimited log of all agent command invocations | Written automatically |
+| Config path override | `--config` flag or `SAFE_IFY_CONFIG` env var | Runtime | Overrides default global config path | Operator at invocation |
+| Project path override | `--project` flag | Runtime | Overrides default project config path | Operator at invocation |
+
+**Security constraints on secrets:**
+- Tokens are never printed to stdout or stderr (masked in `auth list`: first 4 chars + `****`).
+- Tokens are never included in JSON output from any command.
+- Tokens are never written to the audit log.
+- Global config file permissions are enforced at 0600; safe-ify refuses to read if more open.
+
+---
+
+## 7. Definition of Done (DoD) -- per slice
 
 - [ ] All tasks in slice are Done.
 - [ ] Gate row approved.
