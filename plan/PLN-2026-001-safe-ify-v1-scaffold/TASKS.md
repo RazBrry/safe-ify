@@ -2,11 +2,11 @@
 
 | # | Slice | Task | Role | Model | Input files | Output | AC | Status |
 |---|-------|------|------|-------|-------------|--------|----|--------|
-| T1 | S1 | Implement project scaffold + global config | Implementer | Sonnet | 03-arch, 04-config, 05-ops | go.mod, Makefile, cmd/, internal/config/, internal/cli/root.go | AC1: `go build ./...` succeeds; AC2: global config loads/saves with 0600 | Pending |
-| T2 | S1 | Implement auth add/remove/list commands | Implementer | Sonnet | 04-cli-commands, 04-config | internal/cli/auth.go, internal/tui/ | AC1: `auth add` stores instance via TUI; AC2: `auth list` shows masked tokens; AC3: `auth remove` deletes instance | Pending |
-| T3 | S1 | Review scaffold + auth (S1 code) | Code Quality Reviewer | Opus | T1+T2 output, 03-arch, 04-cli-commands | verdict | AC: no blocking issues | Pending |
-| T4 | S1 | Test scaffold + auth (S1 tests) | Tester | Sonnet | T1+T2 output, 05-ops | internal/config/*_test.go | AC: all unit tests pass, config permission tests pass | Pending |
-| T5 | S1 | [GATE] Slice S1 approval | -- | -- | -- | -- | User says GO | Pending |
+| T1 | S1 | Implement project scaffold + global config | Implementer | Sonnet | 03-arch, 04-config, 05-ops | go.mod, Makefile, cmd/, internal/config/, internal/cli/root.go | AC1: `go build ./...` succeeds; AC2: global config loads/saves with 0600 | Done |
+| T2 | S1 | Implement auth add/remove/list commands | Implementer | Sonnet | 04-cli-commands, 04-config | internal/cli/auth.go, internal/tui/ | AC1: `auth add` stores instance via TUI; AC2: `auth list` shows masked tokens; AC3: `auth remove` deletes instance | Done |
+| T3 | S1 | Review scaffold + auth (S1 code) | Code Quality Reviewer | Opus | T1+T2 output, 03-arch, 04-cli-commands | verdict | AC: no blocking issues | Done |
+| T4 | S1 | Test scaffold + auth (S1 tests) | Tester | Sonnet | T1+T2 output, 05-ops | internal/config/*_test.go | AC: all unit tests pass, config permission tests pass | Done |
+| T5 | S1 | [GATE] Slice S1 approval | -- | -- | -- | -- | User says GO | Done |
 | T6 | S2 | Implement permission enforcement | Implementer | Sonnet | 04-config-permissions | internal/permissions/ | AC1: deny-only model works; AC2: project cannot escalate beyond global | Pending |
 | T7 | S2 | Implement init command | Implementer | Sonnet | 04-cli-commands, 04-config-permissions | internal/cli/init.go | AC1: TUI selects instance + app; AC2: writes valid `.safe-ify.yaml`; AC3: project config loads with parent traversal | Pending |
 | T8 | S2 | Review permissions + init (S2 code) | Code Quality Reviewer | Opus | T6+T7 output, 04-config-permissions, 04-cli-commands | verdict | AC: no blocking issues | Pending |
