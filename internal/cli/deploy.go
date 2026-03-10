@@ -22,7 +22,7 @@ func init() {
 func runDeploy(cmd *cobra.Command, args []string) error {
 	useJSON, _ := cmd.Root().PersistentFlags().GetBool("json")
 
-	runtime, client, err := resolveAgentConfig(cmd)
+	runtime, client, enforcer, err := resolveAgentConfig(cmd)
 	if err != nil {
 		if useJSON {
 			OutputError(cmd.OutOrStdout(), mapConfigError(err), err.Error())
@@ -33,7 +33,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check permission before making any API call.
-	if err := checkPermission(runtime, "deploy"); err != nil {
+	if err := enforcer.Check("deploy"); err != nil {
 		if useJSON {
 			OutputError(cmd.OutOrStdout(), ErrCodePermissionDenied, err.Error())
 		} else {
@@ -46,7 +46,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	resp, err := client.Deploy(context.Background(), runtime.AppUUID, force)
 	if err != nil {
 		if useJSON {
-			OutputError(cmd.OutOrStdout(), ErrCodeAPIError, err.Error())
+			OutputError(cmd.OutOrStdout(), mapCoolifyError(err), err.Error())
 		} else {
 			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", err)
 		}

@@ -44,3 +44,19 @@ type CoolifyError struct {
 func (e *CoolifyError) Error() string {
 	return fmt.Sprintf("coolify API error %d: %s", e.StatusCode, e.Message)
 }
+
+// NetworkError represents a transport-level failure (connection refused, timeout, DNS, etc.)
+// that occurred before a response was received from the Coolify API.
+type NetworkError struct {
+	Cause error
+}
+
+// Error implements the error interface.
+func (e *NetworkError) Error() string {
+	return fmt.Sprintf("network error: %s", e.Cause)
+}
+
+// Unwrap returns the underlying cause for errors.Is/errors.As support.
+func (e *NetworkError) Unwrap() error {
+	return e.Cause
+}

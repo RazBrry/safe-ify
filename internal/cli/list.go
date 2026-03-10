@@ -24,7 +24,7 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	// resolveAgentConfig returns a ProjectConfigNotFoundError if no .safe-ify.yaml
 	// is found, satisfying the requirement to error when no project config exists.
-	runtime, client, err := resolveAgentConfig(cmd)
+	_, client, enforcer, err := resolveAgentConfig(cmd)
 	if err != nil {
 		// Provide a specific user-friendly message for missing project config.
 		if _, ok := err.(*config.ProjectConfigNotFoundError); ok {
@@ -45,7 +45,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check permission before making any API call.
-	if err := checkPermission(runtime, "list"); err != nil {
+	if err := enforcer.Check("list"); err != nil {
 		if useJSON {
 			OutputError(cmd.OutOrStdout(), ErrCodePermissionDenied, err.Error())
 		} else {
@@ -57,7 +57,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	apps, err := client.ListApplications(context.Background())
 	if err != nil {
 		if useJSON {
-			OutputError(cmd.OutOrStdout(), ErrCodeAPIError, err.Error())
+			OutputError(cmd.OutOrStdout(), mapCoolifyError(err), err.Error())
 		} else {
 			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", err)
 		}

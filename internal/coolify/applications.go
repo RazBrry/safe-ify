@@ -7,8 +7,21 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"regexp"
 	"strconv"
 )
+
+// uuidPattern matches a standard UUID: 8-4-4-4-12 hexadecimal characters with dashes.
+var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+
+// validateUUID returns an error if uuid does not match the standard UUID format.
+// This prevents path-manipulation attacks (e.g., "../admin", "../../etc/passwd").
+func validateUUID(uuid string) error {
+	if !uuidPattern.MatchString(uuid) {
+		return fmt.Errorf("invalid UUID format: %q — expected xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", uuid)
+	}
+	return nil
+}
 
 // Healthcheck calls GET /api/v1/healthcheck. Returns nil on 200.
 func (c *Client) Healthcheck(ctx context.Context) error {
@@ -60,6 +73,9 @@ func (c *Client) ListApplications(ctx context.Context) ([]Application, error) {
 
 // GetApplication calls GET /api/v1/applications/{uuid} and returns the application.
 func (c *Client) GetApplication(ctx context.Context, uuid string) (*Application, error) {
+	if err := validateUUID(uuid); err != nil {
+		return nil, err
+	}
 	resp, err := c.doRequest(ctx, "GET", "/api/v1/applications/"+uuid, nil)
 	if err != nil {
 		return nil, err
@@ -76,6 +92,10 @@ func (c *Client) GetApplication(ctx context.Context, uuid string) (*Application,
 // GetLogs calls GET /api/v1/applications/{uuid}/logs?tail={tail}
 // and returns the log lines. If tail is 0, no tail parameter is sent.
 func (c *Client) GetLogs(ctx context.Context, uuid string, tail int) ([]string, error) {
+	if err := validateUUID(uuid); err != nil {
+		return nil, err
+	}
+
 	var query url.Values
 	if tail > 0 {
 		query = url.Values{"tail": {strconv.Itoa(tail)}}

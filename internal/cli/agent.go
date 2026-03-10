@@ -7,6 +7,7 @@ import (
 
 	"github.com/erwinmaasbach/safe-ify/internal/config"
 	"github.com/erwinmaasbach/safe-ify/internal/coolify"
+	"github.com/erwinmaasbach/safe-ify/internal/permissions"
 	"github.com/spf13/cobra"
 )
 
@@ -15,8 +16,9 @@ import (
 var errExitCode1 = errors.New("")
 
 // resolveAgentConfig loads project + global configs, resolves the runtime
-// config, and returns a ready-to-use Coolify client.
-func resolveAgentConfig(cmd *cobra.Command) (*config.RuntimeConfig, *coolify.Client, error) {
+// config, builds a permission enforcer, and returns a ready-to-use Coolify client.
+// The returned Enforcer should be used to check per-command permissions via enforcer.Check().
+func resolveAgentConfig(cmd *cobra.Command) (*config.RuntimeConfig, *coolify.Client, *permissions.Enforcer, error) {
 	// 1. Find and load project config (with parent traversal).
 	projectOverride, _ := cmd.Root().PersistentFlags().GetString("project")
 	var (
@@ -28,18 +30,18 @@ func resolveAgentConfig(cmd *cobra.Command) (*config.RuntimeConfig, *coolify.Cli
 	} else {
 		cwd, err := os.Getwd()
 		if err != nil {
-			return nil, nil, fmt.Errorf("cannot determine working directory: %w", err)
+			return nil, nil, nil, fmt.Errorf("cannot determine working directory: %w", err)
 		}
 		found, err := config.FindProjectConfig(cwd)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 		projectPath = found
 	}
 
 	projectCfg, err := config.LoadProject(projectPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// 2. Load global config.
@@ -50,34 +52,29 @@ func resolveAgentConfig(cmd *cobra.Command) (*config.RuntimeConfig, *coolify.Cli
 	} else {
 		globalPath, err = config.DefaultGlobalConfigPath()
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 	}
 
 	globalCfg, err := config.LoadGlobal(globalPath)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// 3. Resolve runtime config (merges global + project deny lists).
 	runtime, err := config.ResolveRuntime(globalCfg, projectCfg)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	// 4. Create Coolify client.
+	// 4. Build permission enforcer from the canonical permissions package.
+	// This avoids duplicating deny-list logic in the CLI layer.
+	enforcer := permissions.NewEnforcer(*globalCfg, *projectCfg)
+
+	// 5. Create Coolify client.
 	client := coolify.NewClient(runtime.InstanceURL, runtime.Token)
 
-	return runtime, client, nil
-}
-
-// checkPermission returns an error if the given command is denied in the
-// runtime config's AllowedCmds map.
-func checkPermission(runtime *config.RuntimeConfig, command string) error {
-	if !runtime.AllowedCmds[command] {
-		return fmt.Errorf("command %q is not permitted for this project", command)
-	}
-	return nil
+	return runtime, client, enforcer, nil
 }
 
 // mapConfigError maps a config-layer error to the appropriate JSON error code.
@@ -94,4 +91,14 @@ func mapConfigError(err error) string {
 	default:
 		return ErrCodeAPIError
 	}
+}
+
+// mapCoolifyError maps a Coolify client error to the appropriate JSON error code.
+// Network/transport failures map to NETWORK_ERROR; API response errors map to API_ERROR.
+func mapCoolifyError(err error) string {
+	var netErr *coolify.NetworkError
+	if errors.As(err, &netErr) {
+		return ErrCodeNetworkError
+	}
+	return ErrCodeAPIError
 }

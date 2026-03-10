@@ -23,7 +23,7 @@ func init() {
 func runLogs(cmd *cobra.Command, args []string) error {
 	useJSON, _ := cmd.Root().PersistentFlags().GetBool("json")
 
-	runtime, client, err := resolveAgentConfig(cmd)
+	runtime, client, enforcer, err := resolveAgentConfig(cmd)
 	if err != nil {
 		if useJSON {
 			OutputError(cmd.OutOrStdout(), mapConfigError(err), err.Error())
@@ -34,7 +34,7 @@ func runLogs(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check permission before making any API call.
-	if err := checkPermission(runtime, "logs"); err != nil {
+	if err := enforcer.Check("logs"); err != nil {
 		if useJSON {
 			OutputError(cmd.OutOrStdout(), ErrCodePermissionDenied, err.Error())
 		} else {
@@ -47,7 +47,7 @@ func runLogs(cmd *cobra.Command, args []string) error {
 	lines, err := client.GetLogs(context.Background(), runtime.AppUUID, tail)
 	if err != nil {
 		if useJSON {
-			OutputError(cmd.OutOrStdout(), ErrCodeAPIError, err.Error())
+			OutputError(cmd.OutOrStdout(), mapCoolifyError(err), err.Error())
 		} else {
 			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", err)
 		}

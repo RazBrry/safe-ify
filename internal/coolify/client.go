@@ -52,7 +52,9 @@ func (c *Client) doRequest(ctx context.Context, method, path string, query url.V
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("executing request: %w", err)
+		// All errors from httpClient.Do are transport/network failures —
+		// classify them as NetworkError, distinct from API-layer errors.
+		return nil, &NetworkError{Cause: err}
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
