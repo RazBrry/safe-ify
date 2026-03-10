@@ -9,7 +9,7 @@
 | T5 | S1 | [GATE] Slice S1 approval | -- | -- | -- | -- | User says GO | Done |
 | T6 | S2 | Implement permission enforcement | Implementer | Sonnet | 04-config-permissions | internal/permissions/ | AC1: deny-only model works; AC2: project cannot escalate beyond global | Done |
 | T7 | S2 | Implement init command | Implementer | Sonnet | 04-cli-commands, 04-config-permissions | internal/cli/init.go | AC1: TUI selects instance + app; AC2: writes valid `.safe-ify.yaml`; AC3: project config loads with parent traversal | Done |
-| T8 | S2 | Review permissions + init (S2 code) | Code Quality Reviewer | Opus | T6+T7 output, 04-config-permissions, 04-cli-commands | verdict | AC: no blocking issues | Pending |
+| T8 | S2 | Review permissions + init (S2 code) | Code Quality Reviewer | Opus | T6+T7 output, 04-config-permissions, 04-cli-commands | verdict | AC: no blocking issues | Done |
 | T9 | S2 | Test permissions + init (S2 tests) | Tester | Sonnet | T6+T7 output, 05-ops | internal/permissions/*_test.go | AC: all permission enforcement tests pass including escalation prevention | Pending |
 | T10 | S2 | [GATE] Slice S2 approval | -- | -- | -- | -- | User says GO | Pending |
 | T11 | S3 | Implement Coolify API client | Implementer | Sonnet | 03-arch, 08-api-matrix | internal/coolify/ | AC1: client calls all 5 endpoints; AC2: error handling for all HTTP status codes | Pending |
