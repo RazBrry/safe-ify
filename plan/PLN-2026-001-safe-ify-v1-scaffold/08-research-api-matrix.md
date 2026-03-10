@@ -7,7 +7,7 @@
 | Base URL | `http(s)://<host>:8000/api/v1` |
 | Auth method | Bearer token in `Authorization` header |
 | Token source | Coolify UI: Keys & Tokens > API tokens |
-| Token format | `<id>\|<random-string>` (e.g., `3\|sk-example-not-a-real-token...`) |
+| Token format | `<id>\|<random-string>` (e.g., `<COOLIFY_TOKEN>`) |
 | Token scope | Team-scoped; can only access owning team's resources |
 | API version | v1 (OpenAPI 3.1 spec) |
 | Content-Type | `application/json` |
