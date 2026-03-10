@@ -8,6 +8,12 @@ import (
 	"github.com/charmbracelet/huh"
 )
 
+// AppOption represents a single Coolify application for display in a picker.
+type AppOption struct {
+	Name string
+	UUID string
+}
+
 // instanceNameRE validates that an instance name contains only alphanumeric
 // characters and hyphens.
 var instanceNameRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-]*$`)
@@ -93,6 +99,64 @@ func AuthRemoveForm(instances []string, values *AuthRemoveValues) *huh.Form {
 				Title("Are you sure you want to remove this instance?").
 				Description("This will delete the credentials from your global config.").
 				Value(&values.Confirm),
+		),
+	)
+}
+
+// InitSelectInstanceForm builds and returns a huh.Form that presents a select
+// list of configured instance names.
+func InitSelectInstanceForm(instances []string, selected *string) *huh.Form {
+	options := make([]huh.Option[string], len(instances))
+	for i, name := range instances {
+		options[i] = huh.NewOption(name, name)
+	}
+
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Select Coolify instance").
+				Description("Choose which Coolify instance to link this project to.").
+				Options(options...).
+				Value(selected),
+		),
+	)
+}
+
+// InitSelectAppForm builds and returns a huh.Form that presents a select list
+// of applications. Each option displays the app name together with its UUID.
+func InitSelectAppForm(apps []AppOption, selected *string) *huh.Form {
+	options := make([]huh.Option[string], len(apps))
+	for i, app := range apps {
+		label := fmt.Sprintf("%s (%s)", app.Name, app.UUID)
+		options[i] = huh.NewOption(label, app.UUID)
+	}
+
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Select application").
+				Description("Choose the Coolify application to deploy for this project.").
+				Options(options...).
+				Value(selected),
+		),
+	)
+}
+
+// InitPermissionsForm builds and returns a huh.Form with a multi-select of all
+// agent commands. Selected commands will be DENIED for this project.
+func InitPermissionsForm(allCommands []string, denied *[]string) *huh.Form {
+	options := make([]huh.Option[string], len(allCommands))
+	for i, cmd := range allCommands {
+		options[i] = huh.NewOption(cmd, cmd)
+	}
+
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title("Permission deny list").
+				Description("Select commands to DENY for this project. Leave empty to allow all commands.").
+				Options(options...).
+				Value(denied),
 		),
 	)
 }
