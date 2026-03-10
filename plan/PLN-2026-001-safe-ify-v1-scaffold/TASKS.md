@@ -7,11 +7,11 @@
 | T3 | S1 | Review scaffold + auth (S1 code) | Code Quality Reviewer | Opus | T1+T2 output, 03-arch, 04-cli-commands | verdict | AC: no blocking issues | Done |
 | T4 | S1 | Test scaffold + auth (S1 tests) | Tester | Sonnet | T1+T2 output, 05-ops | internal/config/*_test.go | AC: all unit tests pass, config permission tests pass | Done |
 | T5 | S1 | [GATE] Slice S1 approval | -- | -- | -- | -- | User says GO | Done |
-| T6 | S2 | Implement permission enforcement | Implementer | Sonnet | 04-config-permissions | internal/permissions/ | AC1: deny-only model works; AC2: project cannot escalate beyond global | Pending |
-| T7 | S2 | Implement init command | Implementer | Sonnet | 04-cli-commands, 04-config-permissions | internal/cli/init.go | AC1: TUI selects instance + app; AC2: writes valid `.safe-ify.yaml`; AC3: project config loads with parent traversal | Pending |
-| T8 | S2 | Review permissions + init (S2 code) | Code Quality Reviewer | Opus | T6+T7 output, 04-config-permissions, 04-cli-commands | verdict | AC: no blocking issues | Pending |
-| T9 | S2 | Test permissions + init (S2 tests) | Tester | Sonnet | T6+T7 output, 05-ops | internal/permissions/*_test.go | AC: all permission enforcement tests pass including escalation prevention | Pending |
-| T10 | S2 | [GATE] Slice S2 approval | -- | -- | -- | -- | User says GO | Pending |
+| T6 | S2 | Implement permission enforcement | Implementer | Sonnet | 04-config-permissions | internal/permissions/ | AC1: deny-only model works; AC2: project cannot escalate beyond global | Done |
+| T7 | S2 | Implement init command | Implementer | Sonnet | 04-cli-commands, 04-config-permissions | internal/cli/init.go | AC1: TUI selects instance + app; AC2: writes valid `.safe-ify.yaml`; AC3: project config loads with parent traversal | Done |
+| T8 | S2 | Review permissions + init (S2 code) | Code Quality Reviewer | Opus | T6+T7 output, 04-config-permissions, 04-cli-commands | verdict | AC: no blocking issues | Done |
+| T9 | S2 | Test permissions + init (S2 tests) | Tester | Sonnet | T6+T7 output, 05-ops | internal/permissions/*_test.go | AC: all permission enforcement tests pass including escalation prevention | Done |
+| T10 | S2 | [GATE] Slice S2 approval | -- | -- | -- | -- | User says GO | Done |
 | T11 | S3 | Implement Coolify API client | Implementer | Sonnet | 03-arch, 08-api-matrix | internal/coolify/ | AC1: client calls all 5 endpoints; AC2: error handling for all HTTP status codes | Pending |
 | T12 | S3 | Implement agent commands (deploy/redeploy/logs/status/list) | Implementer | Sonnet | 04-cli-commands, 03-arch | internal/cli/deploy.go, redeploy.go, logs.go, status.go, list.go, output.go | AC1: all 5 commands produce valid JSON envelope; AC2: permission check before API call | Pending |
 | T13 | S3 | Review API client + agent commands (S3 code) | Code Quality Reviewer | Opus | T11+T12 output, 03-arch, 04-cli-commands, 08-api-matrix | verdict | AC: no blocking issues | Pending |
