@@ -66,7 +66,7 @@ func (c *Client) Restart(ctx context.Context, uuid string) error {
 
 // ListDeployments calls GET /api/v1/deployments/applications/{uuid} and returns
 // the deployment history for the application. The response may be a JSON array
-// or a paginated object with a "data" field — both forms are handled.
+// or a wrapped object with a "deployments" field — both forms are handled.
 func (c *Client) ListDeployments(ctx context.Context, uuid string) ([]Deployment, error) {
 	if err := validateUUID(uuid); err != nil {
 		return nil, err
