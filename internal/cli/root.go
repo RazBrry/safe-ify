@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var (
@@ -23,6 +24,15 @@ auditable access to Coolify deployment operations.
 
 It enforces deny-only permission policies at both global and project levels,
 ensuring that agents can only perform explicitly permitted operations.`,
+}
+
+// requireTTY returns an error if stdin is not an interactive terminal.
+// This prevents agents from running config-modifying commands (init, auth add/remove).
+func requireTTY() error {
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return fmt.Errorf("this command requires an interactive terminal — agents cannot modify safe-ify configuration")
+	}
+	return nil
 }
 
 // Execute runs the root command with the given version string.

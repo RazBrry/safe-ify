@@ -108,6 +108,10 @@ func sanitizeAppName(name string) string {
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
+	if err := requireTTY(); err != nil {
+		return err
+	}
+
 	// Step a: load global config.
 	cfgPath, err := resolveConfigPath()
 	if err != nil {

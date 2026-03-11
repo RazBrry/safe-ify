@@ -123,6 +123,10 @@ func newAuthAddCmd() *cobra.Command {
 }
 
 func runAuthAdd(cmd *cobra.Command, args []string) error {
+	if err := requireTTY(); err != nil {
+		return err
+	}
+
 	cfgPath, err := resolveConfigPath()
 	if err != nil {
 		return err
@@ -203,6 +207,10 @@ func newAuthRemoveCmd() *cobra.Command {
 }
 
 func runAuthRemove(cmd *cobra.Command, args []string) error {
+	if err := requireTTY(); err != nil {
+		return err
+	}
+
 	cfgPath, err := resolveConfigPath()
 	if err != nil {
 		return err
