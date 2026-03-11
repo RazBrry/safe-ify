@@ -32,8 +32,21 @@ type DeployResponse struct {
 type Deployment struct {
 	DeploymentUUID string `json:"deployment_uuid"`
 	Status         string `json:"status"`
+	CommitSHA      string `json:"commit_sha,omitempty"`
+	CommitMessage  string `json:"commit_message,omitempty"`
 	CreatedAt      string `json:"created_at"`
 	UpdatedAt      string `json:"updated_at"`
+}
+
+// Resource represents resource usage metrics for an application.
+type Resource struct {
+	ContainerID string `json:"container_id,omitempty"`
+	CPUPercent  string `json:"cpu_percent,omitempty"`
+	MemUsage    string `json:"mem_usage,omitempty"`
+	MemLimit    string `json:"mem_limit,omitempty"`
+	MemPercent  string `json:"mem_percent,omitempty"`
+	NetIO       string `json:"net_io,omitempty"`
+	BlockIO     string `json:"block_io,omitempty"`
 }
 
 // EnvVar represents a Coolify environment variable.

@@ -40,10 +40,11 @@ safe-ify init
 
 | Command | Description |
 |---------|-------------|
-| `safe-ify auth add` | Add a Coolify instance (URL + token) |
+| `safe-ify auth add` | Add or update a Coolify instance (URL + token) |
 | `safe-ify auth remove` | Remove a configured instance |
 | `safe-ify auth list` | List configured instances (tokens masked) |
 | `safe-ify init` | Multi-select Coolify apps for this project (re-run to add/remove) |
+| `safe-ify update` | Update safe-ify to the latest version |
 | `safe-ify doctor` | Validate setup, output CLAUDE.md snippet |
 
 ### Agent commands (non-interactive, `--json`)
@@ -60,10 +61,15 @@ safe-ify init
 | `safe-ify env get --app api --key DB_HOST --json` | Get a specific env var value |
 | `safe-ify env set --app api --key DB_HOST --value localhost --json` | Create or update an env var |
 | `safe-ify env delete --app api --key OLD_VAR --json` | Delete an env var |
+| `safe-ify deployments --app api --json` | List deployment history (default: last 10) |
+| `safe-ify domains --app api --json` | Show configured domains/URLs |
+| `safe-ify resources --app api --json` | Show CPU, memory, network, disk I/O |
+| `safe-ify rollback --app api --to <sha> --json` | Rollback to a previous commit/tag |
+| `safe-ify preview-deploy --app api --branch <ref> --json` | Deploy a specific branch or tag |
 
 > ¹ `redeploy` uses the Coolify `/restart` endpoint, which may return 403 on some Coolify versions even with the correct token scopes. If you hit this, use `deploy --force` instead.
 
-Both `deploy` and `redeploy` support `--wait` to poll until completion (`--timeout`, `--poll-interval` configurable).
+`deploy`, `redeploy`, `rollback`, and `preview-deploy` all support `--wait` to poll until completion (`--timeout`, `--poll-interval` configurable).
 
 ## API token requirements
 
@@ -71,8 +77,8 @@ Create a Coolify API token at **Settings → API Tokens** with these scopes:
 
 | Scope | Required for |
 |-------|-------------|
-| `read` | status, logs, list, deployment polling |
-| `deploy` | deploy, redeploy |
+| `read` | status, logs, list, deployments, domains, resources, deployment polling |
+| `deploy` | deploy, redeploy, rollback, preview-deploy |
 | `read:sensitive` | reading environment variable values (`env list --show-values`, `env get`) |
 | `write` | modifying environment variables (`env set`, `env delete`) |
 
@@ -99,7 +105,7 @@ Legacy single-app configs (`app_uuid` at root level) are auto-detected and work 
 
 safe-ify enforces a strict separation between human and agent capabilities:
 
-- **Agents can only** run the allowlisted commands (`deploy`, `redeploy`, `logs`, `status`, `list`, `env list/get/set/delete`) within the permissions granted by the config.
+- **Agents can only** run the allowlisted commands (`deploy`, `redeploy`, `logs`, `status`, `list`, `env list/get/set/delete`, `deployments`, `domains`, `resources`, `rollback`, `preview-deploy`) within the permissions granted by the config.
 - **Agents cannot** modify configuration — `init`, `auth add`, and `auth remove` require an interactive terminal (TTY check) and will refuse to run when called from a non-interactive shell.
 - **Permissions are deny-only** — each layer (global, project, per-app) can only restrict further, never grant back a denied command.
 - **Tokens are never exposed** — not in CLI output, not in JSON responses, not in audit logs.

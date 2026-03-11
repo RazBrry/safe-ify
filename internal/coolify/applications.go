@@ -93,6 +93,25 @@ func (c *Client) GetApplication(ctx context.Context, uuid string) (*Application,
 	return &app, nil
 }
 
+// GetResources calls GET /api/v1/applications/{uuid}/resources and returns
+// resource usage metrics for the application's containers.
+func (c *Client) GetResources(ctx context.Context, uuid string) ([]Resource, error) {
+	if err := validateUUID(uuid); err != nil {
+		return nil, err
+	}
+	resp, err := c.doRequest(ctx, "GET", "/api/v1/applications/"+uuid+"/resources", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var resources []Resource
+	if err := json.NewDecoder(resp.Body).Decode(&resources); err != nil {
+		return nil, fmt.Errorf("decoding resources response: %w", err)
+	}
+	return resources, nil
+}
+
 // GetLogs calls GET /api/v1/applications/{uuid}/logs?tail={tail}
 // and returns the log lines. If tail is 0, no tail parameter is sent.
 func (c *Client) GetLogs(ctx context.Context, uuid string, tail int) ([]string, error) {

@@ -12,6 +12,11 @@ var AllAgentCommands = []string{
 	"list",
 	"env-read",
 	"env-write",
+	"deployments",
+	"domains",
+	"resources",
+	"rollback",
+	"preview-deploy",
 }
 
 // PermissionDeniedError is returned when a command is not permitted for a project.

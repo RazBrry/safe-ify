@@ -147,16 +147,42 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step c: select instance.
+	instanceNames := make([]string, 0, len(globalCfg.Instances))
+	for name := range globalCfg.Instances {
+		instanceNames = append(instanceNames, name)
+	}
+
 	var selectedInstance string
 	if projectCfg != nil {
-		// Reuse existing instance.
+		// Existing config — offer to keep or change instance.
 		selectedInstance = projectCfg.Instance
-		fmt.Printf("  Instance: %s (from existing config)\n", selectedInstance)
-	} else {
-		instanceNames := make([]string, 0, len(globalCfg.Instances))
-		for name := range globalCfg.Instances {
-			instanceNames = append(instanceNames, name)
+		if len(instanceNames) > 1 {
+			var changeInstance bool
+			confirm := huh.NewConfirm().
+				Title(fmt.Sprintf("Currently linked to instance %q. Change it?", selectedInstance)).
+				Value(&changeInstance)
+			if err := confirm.Run(); err != nil {
+				if errors.Is(err, huh.ErrUserAborted) {
+					fmt.Println(tui.InfoStyle.Render("Aborted."))
+					return nil
+				}
+				return fmt.Errorf("confirmation error: %w", err)
+			}
+			if changeInstance {
+				if err := tui.InitSelectInstanceForm(instanceNames, &selectedInstance).Run(); err != nil {
+					if errors.Is(err, huh.ErrUserAborted) {
+						fmt.Println(tui.InfoStyle.Render("Aborted."))
+						return nil
+					}
+					return fmt.Errorf("instance picker error: %w", err)
+				}
+			} else {
+				fmt.Printf("  Instance: %s (kept)\n", selectedInstance)
+			}
+		} else {
+			fmt.Printf("  Instance: %s (from existing config)\n", selectedInstance)
 		}
+	} else {
 		if err := tui.InitSelectInstanceForm(instanceNames, &selectedInstance).Run(); err != nil {
 			if errors.Is(err, huh.ErrUserAborted) {
 				fmt.Println(tui.InfoStyle.Render("Aborted."))

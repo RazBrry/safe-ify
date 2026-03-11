@@ -82,7 +82,7 @@ func resolveAgentConfig(cmd *cobra.Command, appRequired bool) (*config.RuntimeCo
 					Token:        inst.Token,
 					AppUUID:      "",
 					AppName:      "",
-					AllowedCmds:  map[string]bool{"deploy": true, "redeploy": true, "logs": true, "status": true, "list": true, "env-read": true, "env-write": true},
+					AllowedCmds:  map[string]bool{"deploy": true, "redeploy": true, "logs": true, "status": true, "list": true, "env-read": true, "env-write": true, "deployments": true, "domains": true, "resources": true, "rollback": true, "preview-deploy": true},
 				}
 				err = nil
 			}

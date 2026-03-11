@@ -63,6 +63,49 @@ func (c *Client) Restart(ctx context.Context, uuid string) error {
 	return nil
 }
 
+// ListDeployments calls GET /api/v1/applications/{uuid}/deployments and returns
+// the deployment history for the application.
+func (c *Client) ListDeployments(ctx context.Context, uuid string) ([]Deployment, error) {
+	if err := validateUUID(uuid); err != nil {
+		return nil, err
+	}
+	resp, err := c.doRequest(ctx, "GET", "/api/v1/applications/"+uuid+"/deployments", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var deployments []Deployment
+	if err := json.NewDecoder(resp.Body).Decode(&deployments); err != nil {
+		return nil, fmt.Errorf("decoding deployments response: %w", err)
+	}
+	return deployments, nil
+}
+
+// DeployByTag triggers a deployment of a specific tag/commit via
+// POST /api/v1/deploy?uuid={uuid}&tag={tag}.
+func (c *Client) DeployByTag(ctx context.Context, uuid, tag string) (*DeployResponse, error) {
+	if err := validateUUID(uuid); err != nil {
+		return nil, err
+	}
+	query := url.Values{
+		"uuid": {uuid},
+		"tag":  {tag},
+	}
+
+	resp, err := c.doRequest(ctx, "POST", "/api/v1/deploy", query)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var deployResp DeployResponse
+	if err := json.NewDecoder(resp.Body).Decode(&deployResp); err != nil {
+		return nil, fmt.Errorf("decoding deploy response: %w", err)
+	}
+	return &deployResp, nil
+}
+
 // boolStr converts a bool to its string representation.
 func boolStr(b bool) string {
 	if b {

@@ -33,6 +33,12 @@ internal/
     status.go            # Agent command: status
     list.go              # Agent command: list
     env.go               # Agent commands: env list/get/set/delete
+    deployments.go       # Agent command: deployment history
+    domains.go           # Agent command: app domains/URLs
+    resources.go         # Agent command: resource usage metrics
+    rollback.go          # Agent command: rollback to previous deployment
+    preview.go           # Agent command: preview/branch deployment
+    update.go            # Self-update command
     doctor.go            # Doctor command
     output.go            # JSON envelope formatting
   config/
@@ -91,10 +97,11 @@ go install ./cmd/safe-ify
 ### Human-facing (interactive TUI)
 | Command | Description |
 |---------|-------------|
-| `safe-ify auth add` | Add a Coolify instance (URL + token) |
+| `safe-ify auth add` | Add or update a Coolify instance (URL + token) |
 | `safe-ify auth remove` | Remove a configured instance |
 | `safe-ify auth list` | List configured instances (tokens masked) |
 | `safe-ify init` | Link project to Coolify instance/app, configure permissions |
+| `safe-ify update` | Update safe-ify to the latest version |
 
 ### Agent-facing (non-interactive, `--json`)
 | Command | Description |
@@ -109,6 +116,11 @@ go install ./cmd/safe-ify
 | `safe-ify env get --key X --json` | Get env var value |
 | `safe-ify env set --key X --value Y --json` | Set env var |
 | `safe-ify env delete --key X --json` | Delete env var |
+| `safe-ify deployments --json` | List deployment history |
+| `safe-ify domains --json` | Show app domains/URLs |
+| `safe-ify resources --json` | Show CPU/memory/disk usage |
+| `safe-ify rollback --to <sha> --json` | Rollback to previous commit/tag |
+| `safe-ify preview-deploy --branch <ref> --json` | Deploy a specific branch |
 | `safe-ify doctor` | Validate setup, output CLAUDE.md snippet |
 
 ## Planning Workflow
