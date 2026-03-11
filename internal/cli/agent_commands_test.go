@@ -358,16 +358,11 @@ func TestStatus_JSON_Success(t *testing.T) {
 // ── Test: list success ────────────────────────────────────────────────────────
 
 func TestList_JSON_Success(t *testing.T) {
-	appsJSON := `[{"uuid":"a1b2c3d4-e5f6-7890-abcd-ef1234567890","name":"my-app","status":"running","fqdn":"https://app.example.com"},{"uuid":"b2c3d4e5-f6a7-8901-bcde-f12345678901","name":"other-app","status":"stopped","fqdn":""}]`
-
+	// list now reads from project config, not Coolify API.
+	// setupTestEnv creates a legacy config with app_uuid a1b2c3d4-...,
+	// which normalizes to Apps["default"].
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet || r.URL.Path != "/api/v1/applications" {
-			http.Error(w, "unexpected request", http.StatusBadRequest)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		fmt.Fprint(w, appsJSON)
+		http.Error(w, "list should not call API", http.StatusInternalServerError)
 	}))
 	env := setupTestEnv(t, srv)
 	defer env.Close()
@@ -382,19 +377,19 @@ func TestList_JSON_Success(t *testing.T) {
 		t.Fatal("expected data object in response")
 	}
 	count, _ := data["count"].(float64)
-	if int(count) != 2 {
-		t.Errorf("expected count=2, got %v", count)
+	if int(count) != 1 {
+		t.Errorf("expected count=1, got %v", count)
 	}
 	applications, _ := data["applications"].([]interface{})
-	if len(applications) != 2 {
-		t.Fatalf("expected 2 applications, got %d", len(applications))
+	if len(applications) != 1 {
+		t.Fatalf("expected 1 application, got %d", len(applications))
 	}
 	first, _ := applications[0].(map[string]interface{})
 	if first["uuid"] != "a1b2c3d4-e5f6-7890-abcd-ef1234567890" {
-		t.Errorf("unexpected first app UUID: %v", first["uuid"])
+		t.Errorf("unexpected app UUID: %v", first["uuid"])
 	}
-	if first["name"] != "my-app" {
-		t.Errorf("unexpected first app name: %v", first["name"])
+	if first["name"] != "default" {
+		t.Errorf("unexpected app name: %v (expected 'default' from legacy normalization)", first["name"])
 	}
 }
 

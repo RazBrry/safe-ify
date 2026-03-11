@@ -1,18 +1,17 @@
 package cli
 
 import (
-	"context"
 	"fmt"
+	"os"
 
 	"github.com/erwinmaasbach/safe-ify/internal/config"
-	"github.com/erwinmaasbach/safe-ify/internal/coolify"
 	"github.com/spf13/cobra"
 )
 
 var listCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List available applications",
-	Long:  "List all applications available on the Coolify instance configured in .safe-ify.yaml.",
+	Short: "List configured applications for this project",
+	Long:  "List the applications configured in .safe-ify.yaml for this project.",
 	RunE:  runList,
 }
 
@@ -23,91 +22,94 @@ func init() {
 func runList(cmd *cobra.Command, args []string) error {
 	useJSON, _ := cmd.Root().PersistentFlags().GetBool("json")
 
-	err := runAgentCommand(cmd, "list", false, func(cfg *config.RuntimeConfig, client *coolify.Client) (interface{}, error) {
-		if !cfg.AllowedCmds["list"] {
-			err := fmt.Errorf("command %q is not permitted for this project", "list")
-			if useJSON {
-				OutputError(cmd.OutOrStdout(), ErrCodePermissionDenied, err.Error())
-			} else {
-				fmt.Fprintf(cmd.ErrOrStderr(), "Permission denied: %s\n", err)
-			}
-			return nil, errExitCode1
-		}
+	// Load project config directly — list doesn't need a specific app resolved.
+	projectOverride, _ := cmd.Root().PersistentFlags().GetString("project")
+	var projectPath string
 
-		apps, err := client.ListApplications(context.Background())
+	if projectOverride != "" {
+		projectPath = projectOverride
+	} else {
+		cwd, err := os.Getwd()
 		if err != nil {
+			msg := fmt.Sprintf("cannot determine working directory: %s", err)
 			if useJSON {
-				OutputError(cmd.OutOrStdout(), mapCoolifyError(err), err.Error())
+				OutputError(cmd.OutOrStdout(), ErrCodeAPIError, msg)
 			} else {
-				fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", err)
+				fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", msg)
 			}
-			return nil, errExitCode1
+			return errExitCode1
 		}
-
-		type appSummary struct {
-			UUID   string `json:"uuid"`
-			Name   string `json:"name"`
-			Status string `json:"status"`
-			FQDN   string `json:"fqdn,omitempty"`
-		}
-		type listData struct {
-			Applications []appSummary `json:"applications"`
-			Count        int          `json:"count"`
-		}
-
-		summaries := make([]appSummary, len(apps))
-		for i, app := range apps {
-			summaries[i] = appSummary{
-				UUID:   app.UUID,
-				Name:   app.Name,
-				Status: app.Status,
-				FQDN:   app.FQDN,
-			}
-		}
-		data := listData{
-			Applications: summaries,
-			Count:        len(summaries),
-		}
-
-		if useJSON {
-			OutputJSON(cmd.OutOrStdout(), Response{
-				OK:   true,
-				Data: data,
-			})
-		} else {
-			if len(apps) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No applications found.")
-				return data, nil
-			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%-40s %-30s %s\n", "UUID", "Name", "Status")
-			fmt.Fprintf(cmd.OutOrStdout(), "%-40s %-30s %s\n", "----", "----", "------")
-			for _, app := range apps {
-				fmt.Fprintf(cmd.OutOrStdout(), "%-40s %-30s %s\n", app.UUID, app.Name, app.Status)
-			}
-		}
-		return data, nil
-	})
-
-	if err == errExitCode1 {
-		return errExitCode1
-	}
-	if err != nil {
-		// Provide a specific user-friendly message for missing project config.
-		if _, ok := err.(*config.ProjectConfigNotFoundError); ok {
+		found, err := config.FindProjectConfig(cwd)
+		if err != nil {
 			msg := "No project config found. Run `safe-ify init` first."
 			if useJSON {
 				OutputError(cmd.OutOrStdout(), ErrCodeConfigNotFound, msg)
 			} else {
 				fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", msg)
 			}
+			return errExitCode1
+		}
+		projectPath = found
+	}
+
+	projectCfg, err := config.LoadProject(projectPath)
+	if err != nil {
+		if useJSON {
+			OutputError(cmd.OutOrStdout(), mapConfigError(err), err.Error())
 		} else {
-			if useJSON {
-				OutputError(cmd.OutOrStdout(), mapConfigError(err), err.Error())
-			} else {
-				fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", err)
-			}
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", err)
 		}
 		return errExitCode1
 	}
+
+	// Build the app list from the project config.
+	type appEntry struct {
+		Name     string   `json:"name"`
+		UUID     string   `json:"uuid"`
+		Instance string   `json:"instance"`
+		Deny     []string `json:"deny,omitempty"`
+	}
+	type listData struct {
+		Applications []appEntry `json:"applications"`
+		Count        int        `json:"count"`
+	}
+
+	entries := make([]appEntry, 0, len(projectCfg.Apps))
+	for name, appCfg := range projectCfg.Apps {
+		entries = append(entries, appEntry{
+			Name:     name,
+			UUID:     appCfg.UUID,
+			Instance: projectCfg.Instance,
+			Deny:     appCfg.Permissions.Deny,
+		})
+	}
+
+	data := listData{
+		Applications: entries,
+		Count:        len(entries),
+	}
+
+	if useJSON {
+		OutputJSON(cmd.OutOrStdout(), Response{
+			OK:   true,
+			Data: data,
+		})
+	} else {
+		if len(entries) == 0 {
+			fmt.Fprintln(cmd.OutOrStdout(), "No applications configured. Run `safe-ify init` to add apps.")
+			return nil
+		}
+		fmt.Fprintf(cmd.OutOrStdout(), "Instance: %s\n\n", projectCfg.Instance)
+		fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-40s %s\n", "Name", "UUID", "Deny")
+		fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-40s %s\n", "----", "----", "----")
+		for _, e := range entries {
+			deny := "(none)"
+			if len(e.Deny) > 0 {
+				deny = fmt.Sprintf("%v", e.Deny)
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-40s %s\n", e.Name, e.UUID, deny)
+		}
+	}
+
 	return nil
 }
