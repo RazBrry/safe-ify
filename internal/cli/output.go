@@ -8,8 +8,8 @@ import (
 // Response is the standard JSON envelope for all agent-facing commands.
 type Response struct {
 	OK    bool        `json:"ok"`
-	Data  interface{} `json:"data,omitempty"`
-	Error *ErrorInfo  `json:"error,omitempty"`
+	Data  interface{} `json:"data"`
+	Error *ErrorInfo  `json:"error"`
 }
 
 // ErrorInfo holds a structured error code and message.

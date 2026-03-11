@@ -43,9 +43,13 @@ func TestOutputJSON_Success(t *testing.T) {
 		t.Error("expected data to be non-nil for success response")
 	}
 
-	// error must be absent (omitempty) for success.
-	if errVal, exists := got["error"]; exists {
-		t.Errorf("expected no 'error' key in success response, got %v", errVal)
+	// error must be present as explicit null (spec 5.1: no omitempty).
+	errVal, exists := got["error"]
+	if !exists {
+		t.Error("expected 'error' key to be present (as null) in success response")
+	}
+	if errVal != nil {
+		t.Errorf("expected error=null in success response, got %v", errVal)
 	}
 }
 
@@ -69,9 +73,13 @@ func TestOutputJSON_Error(t *testing.T) {
 		t.Errorf("expected ok=false, got %v", ok)
 	}
 
-	// data must be absent (omitempty) for error.
-	if dataVal, exists := got["data"]; exists {
-		t.Errorf("expected no 'data' key in error response, got %v", dataVal)
+	// data must be present as explicit null (spec 5.1: no omitempty).
+	dataVal, exists := got["data"]
+	if !exists {
+		t.Error("expected 'data' key to be present (as null) in error response")
+	}
+	if dataVal != nil {
+		t.Errorf("expected data=null in error response, got %v", dataVal)
 	}
 
 	// error must be present with code and message.

@@ -58,34 +58,46 @@ func loadOrCreateGlobal(path string) (*config.GlobalConfig, error) {
 	return cfg, nil
 }
 
-// validateToken makes a GET request to {url}/api/v1/healthcheck with the given
-// Bearer token and returns an error if the call fails or the server returns a
-// non-2xx status code.
+// validateToken verifies connectivity and authentication by trying
+// /api/v1/version (authenticated). Falls back to /api/v1/healthcheck if
+// version returns 404 (older Coolify versions).
 func validateToken(rawURL, token string) error {
-	endpoint := strings.TrimRight(rawURL, "/") + "/api/v1/healthcheck"
-
+	if !strings.Contains(rawURL, "://") {
+		rawURL = "https://" + rawURL
+	}
+	base := strings.TrimRight(rawURL, "/")
 	client := &http.Client{Timeout: 15 * time.Second}
-	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
-	if err != nil {
-		return fmt.Errorf("cannot build healthcheck request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-	req.Header.Set("User-Agent", "safe-ify/1.0")
 
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("cannot reach Coolify at %s: %w", rawURL, err)
-	}
-	defer resp.Body.Close()
+	// Try /api/v1/version first (requires valid token).
+	for _, path := range []string{"/api/v1/version", "/api/v1/healthcheck"} {
+		endpoint := base + path
 
-	switch resp.StatusCode {
-	case http.StatusOK, http.StatusNoContent:
-		return nil
-	case http.StatusUnauthorized:
-		return fmt.Errorf("authentication failed (401): check your API token")
-	default:
-		return fmt.Errorf("healthcheck returned unexpected status %d", resp.StatusCode)
+		req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+		if err != nil {
+			return fmt.Errorf("cannot build request: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("User-Agent", "safe-ify/1.0")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return fmt.Errorf("cannot reach Coolify at %s: %w", rawURL, err)
+		}
+		resp.Body.Close()
+
+		switch resp.StatusCode {
+		case http.StatusOK, http.StatusNoContent:
+			return nil
+		case http.StatusUnauthorized:
+			return fmt.Errorf("authentication failed (401): check your API token")
+		case http.StatusNotFound:
+			continue // try next endpoint
+		default:
+			return fmt.Errorf("%s returned unexpected status %d", path, resp.StatusCode)
+		}
 	}
+
+	return fmt.Errorf("could not validate token: neither /api/v1/version nor /api/v1/healthcheck responded (both returned 404)")
 }
 
 // maskToken returns the first 4 characters of the token followed by "****",
@@ -125,6 +137,12 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		}
 		return fmt.Errorf("form error: %w", err)
 	}
+
+	// Normalize URL: ensure scheme is present.
+	if !strings.Contains(values.URL, "://") {
+		values.URL = "https://" + values.URL
+	}
+	values.URL = strings.TrimRight(values.URL, "/")
 
 	// Validate token via healthcheck.
 	fmt.Println(tui.InfoStyle.Render("Validating token..."))

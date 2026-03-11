@@ -2,6 +2,7 @@ package coolify
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -120,7 +121,7 @@ func (c *Client) GetLogs(ctx context.Context, uuid string, tail int) ([]string, 
 	}
 
 	// Fall back: split by newlines.
-	lineScanner := bufio.NewScanner(newBytesReader(body))
+	lineScanner := bufio.NewScanner(bytes.NewReader(body))
 	for lineScanner.Scan() {
 		line := lineScanner.Text()
 		if line != "" {
@@ -128,23 +129,4 @@ func (c *Client) GetLogs(ctx context.Context, uuid string, tail int) ([]string, 
 		}
 	}
 	return lines, lineScanner.Err()
-}
-
-// newBytesReader wraps a byte slice in an io.Reader for bufio.Scanner.
-func newBytesReader(b []byte) io.Reader {
-	return &bytesReader{b: b}
-}
-
-type bytesReader struct {
-	b   []byte
-	pos int
-}
-
-func (r *bytesReader) Read(p []byte) (int, error) {
-	if r.pos >= len(r.b) {
-		return 0, io.EOF
-	}
-	n := copy(p, r.b[r.pos:])
-	r.pos += n
-	return n, nil
 }

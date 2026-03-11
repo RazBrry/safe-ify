@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"strings"
 
 	"github.com/charmbracelet/huh"
 )
@@ -46,15 +47,20 @@ func AuthAddForm(values *AuthAddValues) *huh.Form {
 
 			huh.NewInput().
 				Title("Coolify URL").
-				Description("The full URL of your Coolify instance (e.g., https://coolify.example.com).").
+				Description("The URL of your Coolify instance (e.g., coolify.example.com).").
 				Value(&values.URL).
 				Validate(func(s string) error {
 					if s == "" {
 						return fmt.Errorf("URL is required")
 					}
-					u, err := url.ParseRequestURI(s)
+					// For validation, test with scheme prepended
+					test := s
+					if !strings.Contains(test, "://") {
+						test = "https://" + test
+					}
+					u, err := url.ParseRequestURI(test)
 					if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-						return fmt.Errorf("must be a valid URL (e.g., https://coolify.example.com)")
+						return fmt.Errorf("must be a valid URL (e.g., coolify.example.com)")
 					}
 					return nil
 				}),
