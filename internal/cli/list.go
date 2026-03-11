@@ -99,16 +99,20 @@ func runList(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(cmd.OutOrStdout(), "No applications configured. Run `safe-ify init` to add apps.")
 			return nil
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Instance: %s\n\n", projectCfg.Instance)
-		fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-40s %s\n", "Name", "UUID", "Deny")
-		fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-40s %s\n", "----", "----", "----")
+		fmt.Fprintf(cmd.OutOrStdout(), "Apps configured for this project (from .safe-ify.yaml):\n\n")
+		fmt.Fprintf(cmd.OutOrStdout(), "  Instance: %s\n\n", projectCfg.Instance)
+		fmt.Fprintf(cmd.OutOrStdout(), "  %-20s %-40s %s\n", "Name", "UUID", "Deny")
+		fmt.Fprintf(cmd.OutOrStdout(), "  %-20s %-40s %s\n", "----", "----", "----")
 		for _, e := range entries {
 			deny := "(none)"
 			if len(e.Deny) > 0 {
 				deny = fmt.Sprintf("%v", e.Deny)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "%-20s %-40s %s\n", e.Name, e.UUID, deny)
+			fmt.Fprintf(cmd.OutOrStdout(), "  %-20s %-40s %s\n", e.Name, e.UUID, deny)
 		}
+		fmt.Fprintln(cmd.OutOrStdout())
+		fmt.Fprintln(cmd.OutOrStdout(), "Use --app <name> with deploy/status/logs commands.")
+		fmt.Fprintln(cmd.OutOrStdout(), "To browse all apps on the instance, run: safe-ify browse")
 	}
 
 	return nil
