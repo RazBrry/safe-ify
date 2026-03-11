@@ -13,6 +13,7 @@ A CLI safety layer for coding agents to interact with [Coolify](https://coolify.
 - **Machine-readable output** — all agent commands support `--json` with `{ok, data, error}` envelope
 - **Audit logging** — append-only log of all agent actions
 - **Zero credential leakage** — tokens never printed, never in JSON output, never in audit logs
+- **TTY-guarded config** — `init`, `auth add`, and `auth remove` require an interactive terminal, so agents cannot modify configuration
 
 ## Quick start
 
@@ -26,10 +27,10 @@ make build  # → ./bin/safe-ify
 # Add your Coolify instance
 safe-ify auth add
 
-# Link a project (run from your repo root)
+# Link a project (run from your repo root — multi-select your apps)
 safe-ify init
 
-# Add another app to the same project
+# Run again to add/remove apps (already configured apps are pre-selected)
 safe-ify init
 ```
 
@@ -42,7 +43,7 @@ safe-ify init
 | `safe-ify auth add` | Add a Coolify instance (URL + token) |
 | `safe-ify auth remove` | Remove a configured instance |
 | `safe-ify auth list` | List configured instances (tokens masked) |
-| `safe-ify init` | Link project to instance/app, or add another app |
+| `safe-ify init` | Multi-select Coolify apps for this project (re-run to add/remove) |
 | `safe-ify doctor` | Validate setup, output CLAUDE.md snippet |
 
 ### Agent commands (non-interactive, `--json`)
@@ -71,6 +72,15 @@ apps:
 ```
 
 Legacy single-app configs (`app_uuid` at root level) are auto-detected and work without changes.
+
+## Security model
+
+safe-ify enforces a strict separation between human and agent capabilities:
+
+- **Agents can only** run the five allowlisted commands (`deploy`, `redeploy`, `logs`, `status`, `list`) within the permissions granted by the config.
+- **Agents cannot** modify configuration — `init`, `auth add`, and `auth remove` require an interactive terminal (TTY check) and will refuse to run when called from a non-interactive shell.
+- **Permissions are deny-only** — each layer (global, project, per-app) can only restrict further, never grant back a denied command.
+- **Tokens are never exposed** — not in CLI output, not in JSON responses, not in audit logs.
 
 ## Tech stack
 
