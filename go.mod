@@ -1,4 +1,4 @@
-module github.com/erwinmaasbach/safe-ify
+module github.com/RazBrry/safe-ify
 
 go 1.26.1
 

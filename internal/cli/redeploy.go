@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/erwinmaasbach/safe-ify/internal/config"
-	"github.com/erwinmaasbach/safe-ify/internal/coolify"
+	"github.com/RazBrry/safe-ify/internal/config"
+	"github.com/RazBrry/safe-ify/internal/coolify"
 	"github.com/spf13/cobra"
 )
 

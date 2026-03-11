@@ -9,9 +9,9 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
-	"github.com/erwinmaasbach/safe-ify/internal/config"
-	"github.com/erwinmaasbach/safe-ify/internal/coolify"
-	"github.com/erwinmaasbach/safe-ify/internal/tui"
+	"github.com/RazBrry/safe-ify/internal/config"
+	"github.com/RazBrry/safe-ify/internal/coolify"
+	"github.com/RazBrry/safe-ify/internal/tui"
 )
 
 var browseCmd = &cobra.Command{

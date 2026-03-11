@@ -14,9 +14,9 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 
-	"github.com/erwinmaasbach/safe-ify/internal/config"
-	"github.com/erwinmaasbach/safe-ify/internal/permissions"
-	"github.com/erwinmaasbach/safe-ify/internal/tui"
+	"github.com/RazBrry/safe-ify/internal/config"
+	"github.com/RazBrry/safe-ify/internal/permissions"
+	"github.com/RazBrry/safe-ify/internal/tui"
 )
 
 func init() {

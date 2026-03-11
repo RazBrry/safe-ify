@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/erwinmaasbach/safe-ify/internal/config"
+	"github.com/RazBrry/safe-ify/internal/config"
 	"github.com/spf13/cobra"
 )
 

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/erwinmaasbach/safe-ify/internal/config"
-	"github.com/erwinmaasbach/safe-ify/internal/coolify"
-	"github.com/erwinmaasbach/safe-ify/internal/permissions"
+	"github.com/RazBrry/safe-ify/internal/config"
+	"github.com/RazBrry/safe-ify/internal/coolify"
+	"github.com/RazBrry/safe-ify/internal/permissions"
 	"github.com/spf13/cobra"
 )
 

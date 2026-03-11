@@ -3,7 +3,7 @@ package permissions
 import (
 	"fmt"
 
-	"github.com/erwinmaasbach/safe-ify/internal/config"
+	"github.com/RazBrry/safe-ify/internal/config"
 )
 
 // Enforcer holds the resolved allow/deny state for agent commands.

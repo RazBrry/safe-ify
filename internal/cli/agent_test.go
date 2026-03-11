@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/erwinmaasbach/safe-ify/internal/config"
+	"github.com/RazBrry/safe-ify/internal/config"
 )
 
 // ── Multi-app test helpers ────────────────────────────────────────────────────
