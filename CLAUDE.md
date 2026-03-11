@@ -99,8 +99,9 @@ go install ./cmd/safe-ify
 | Command | Description |
 |---------|-------------|
 | `safe-ify deploy --json` | Trigger deployment |
+| `safe-ify deploy --json --wait` | Deploy and wait for completion (polls status) |
 | `safe-ify redeploy --json` | Redeploy current version |
-| `safe-ify logs --json --tail N` | Fetch recent logs |
+| `safe-ify logs --json --tail N` | Fetch recent logs (default: 100 lines) |
 | `safe-ify status --json` | Check deployment status |
 | `safe-ify list --json` | List available applications |
 | `safe-ify doctor` | Validate setup, output CLAUDE.md snippet |

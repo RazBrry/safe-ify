@@ -51,8 +51,9 @@ safe-ify init
 | Command | Description |
 |---------|-------------|
 | `safe-ify deploy --app api --json` | Trigger deployment |
+| `safe-ify deploy --app api --json --wait` | Deploy and wait for completion (polls status) |
 | `safe-ify redeploy --app api --json` | Redeploy current version |
-| `safe-ify logs --app api --json --tail 50` | Fetch recent logs |
+| `safe-ify logs --app api --json --tail 50` | Fetch recent logs (default: 100 lines) |
 | `safe-ify status --app api --json` | Check deployment status |
 | `safe-ify list --json` | List available applications (no `--app` needed) |
 
