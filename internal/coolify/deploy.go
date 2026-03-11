@@ -31,6 +31,24 @@ func (c *Client) Deploy(ctx context.Context, uuid string, force bool) (*DeployRe
 	return &deployResp, nil
 }
 
+// GetDeployment calls GET /api/v1/deployments/{uuid} and returns the deployment status.
+func (c *Client) GetDeployment(ctx context.Context, deploymentUUID string) (*Deployment, error) {
+	if err := validateUUID(deploymentUUID); err != nil {
+		return nil, err
+	}
+	resp, err := c.doRequest(ctx, "GET", "/api/v1/deployments/"+deploymentUUID, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var d Deployment
+	if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
+		return nil, fmt.Errorf("decoding deployment response: %w", err)
+	}
+	return &d, nil
+}
+
 // Restart triggers an application restart via POST /api/v1/applications/{uuid}/restart.
 // POST is used because restart is a side-effecting operation (D11).
 func (c *Client) Restart(ctx context.Context, uuid string) error {

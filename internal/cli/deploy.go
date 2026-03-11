@@ -15,8 +15,9 @@ var deployCmd = &cobra.Command{
 	Short: "Trigger a deployment",
 	Long: `Trigger a new deployment for the application configured in .safe-ify.yaml.
 
-Use --wait to poll for completion (checks status every --poll-interval seconds,
-times out after --timeout seconds).`,
+Use --wait to poll for completion (checks deployment status every --poll-interval
+seconds, times out after --timeout seconds). Tracks the specific deployment, not
+the app's general status.`,
 	RunE: runDeploy,
 }
 
@@ -62,7 +63,6 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		}
 
 		if !wait {
-			// No wait — return immediately.
 			type deployData struct {
 				Message        string `json:"message"`
 				DeploymentUUID string `json:"deployment_uuid,omitempty"`
@@ -83,23 +83,29 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			return data, nil
 		}
 
-		// --wait: poll status until deployment completes or timeout.
-		if !useJSON {
-			fmt.Fprintf(cmd.OutOrStdout(), "Deployment queued")
-			if deploymentUUID != "" {
-				fmt.Fprintf(cmd.OutOrStdout(), " (%s)", deploymentUUID)
+		// --wait: poll the specific deployment until it completes or times out.
+		if deploymentUUID == "" {
+			msg := "cannot use --wait: no deployment UUID returned by Coolify"
+			if useJSON {
+				OutputError(cmd.OutOrStdout(), ErrCodeAPIError, msg)
+			} else {
+				fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", msg)
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), ". Waiting for completion (timeout: %ds)...\n", timeout)
+			return nil, errExitCode1
 		}
 
-		finalStatus, err := pollDeployment(cmd, client, cfg.AppUUID, useJSON, timeout, pollInterval)
+		if !useJSON {
+			fmt.Fprintf(cmd.OutOrStdout(), "Deployment queued (%s). Waiting for completion (timeout: %ds)...\n", deploymentUUID, timeout)
+		}
+
+		finalStatus, err := pollDeployment(cmd, client, deploymentUUID, useJSON, timeout, pollInterval)
 		if err != nil {
 			return nil, err
 		}
 
 		type deployWaitData struct {
 			Message        string `json:"message"`
-			DeploymentUUID string `json:"deployment_uuid,omitempty"`
+			DeploymentUUID string `json:"deployment_uuid"`
 			Status         string `json:"status"`
 		}
 		data := deployWaitData{
@@ -107,7 +113,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 			Status:         finalStatus,
 		}
 
-		if isHealthyStatus(finalStatus) {
+		if isDeploymentFinished(finalStatus) {
 			data.Message = "Deployment completed successfully."
 		} else {
 			data.Message = fmt.Sprintf("Deployment finished with status: %s", finalStatus)
@@ -116,7 +122,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 		if useJSON {
 			OutputJSON(cmd.OutOrStdout(), Response{OK: true, Data: data})
 		} else {
-			fmt.Fprintf(cmd.OutOrStdout(), "Final status: %s\n", finalStatus)
+			fmt.Fprintf(cmd.OutOrStdout(), "Deployment complete — status: %s\n", finalStatus)
 		}
 		return data, nil
 	})
@@ -135,72 +141,56 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// pollDeployment polls GetApplication in two phases:
-//  1. Wait for the status to transition to a deploying state (building/deploying/etc).
-//     This handles the delay between triggering a deploy and Coolify starting the build.
-//  2. Wait for the status to settle (no longer deploying).
-//
-// Returns the final status or times out.
-func pollDeployment(cmd *cobra.Command, client *coolify.Client, uuid string, useJSON bool, timeoutSec, intervalSec int) (string, error) {
+// pollDeployment polls GET /api/v1/deployments/{uuid} for the specific deployment
+// until its status is no longer in-progress, or the timeout is reached.
+func pollDeployment(cmd *cobra.Command, client *coolify.Client, deploymentUUID string, useJSON bool, timeoutSec, intervalSec int) (string, error) {
 	deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
 	interval := time.Duration(intervalSec) * time.Second
-	sawDeploying := false
 
 	for {
 		time.Sleep(interval)
 
-		app, err := client.GetApplication(context.Background(), uuid)
+		d, err := client.GetDeployment(context.Background(), deploymentUUID)
 		if err != nil {
 			if useJSON {
 				OutputError(cmd.OutOrStdout(), mapCoolifyError(err), err.Error())
 			} else {
-				fmt.Fprintf(cmd.ErrOrStderr(), "Error polling status: %s\n", err)
+				fmt.Fprintf(cmd.ErrOrStderr(), "Error polling deployment: %s\n", err)
 			}
 			return "", errExitCode1
 		}
 
 		if !useJSON {
-			fmt.Fprintf(cmd.OutOrStdout(), "  status: %s\n", app.Status)
+			fmt.Fprintf(cmd.OutOrStdout(), "  deployment status: %s\n", d.Status)
 		}
 
-		if isDeployingStatus(app.Status) {
-			sawDeploying = true
-		}
-
-		// Only return when we've seen it enter deploying and then settle.
-		if sawDeploying && !isDeployingStatus(app.Status) {
-			return app.Status, nil
+		if !isDeploymentInProgress(d.Status) {
+			return d.Status, nil
 		}
 
 		if time.Now().After(deadline) {
-			msg := fmt.Sprintf("timed out after %ds — last status: %s", timeoutSec, app.Status)
-			if !sawDeploying {
-				msg = fmt.Sprintf("timed out after %ds — deployment never started (status stayed %s)", timeoutSec, app.Status)
-			}
+			msg := fmt.Sprintf("timed out after %ds — deployment %s still %s", timeoutSec, deploymentUUID, d.Status)
 			if useJSON {
 				OutputError(cmd.OutOrStdout(), "DEPLOY_TIMEOUT", msg)
 			} else {
 				fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", msg)
 			}
-			return app.Status, errExitCode1
+			return d.Status, errExitCode1
 		}
 	}
 }
 
-// isDeployingStatus returns true if the status indicates deployment is still in progress.
-func isDeployingStatus(status string) bool {
+// isDeploymentInProgress returns true if the deployment status indicates it's still running.
+// Coolify deployment statuses: queued, in_progress, finished, failed, cancelled.
+func isDeploymentInProgress(status string) bool {
 	switch status {
-	case "deploying", "building", "restarting", "starting":
+	case "queued", "in_progress", "deploying", "building":
 		return true
 	}
 	return false
 }
 
-// isHealthyStatus returns true if the status indicates a successful deployment.
-func isHealthyStatus(status string) bool {
-	switch status {
-	case "running", "running:healthy":
-		return true
-	}
-	return false
+// isDeploymentFinished returns true if the deployment completed successfully.
+func isDeploymentFinished(status string) bool {
+	return status == "finished"
 }

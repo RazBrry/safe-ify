@@ -28,6 +28,14 @@ type DeployResponse struct {
 	Deployments []DeploymentEntry `json:"deployments"`
 }
 
+// Deployment represents a single deployment with its status.
+type Deployment struct {
+	DeploymentUUID string `json:"deployment_uuid"`
+	Status         string `json:"status"`
+	CreatedAt      string `json:"created_at"`
+	UpdatedAt      string `json:"updated_at"`
+}
+
 // LogsResponse holds log lines returned by the logs API.
 type LogsResponse struct {
 	Lines []string
