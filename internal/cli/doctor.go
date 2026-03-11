@@ -282,6 +282,8 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(stdout, "### Usage")
 	fmt.Fprintln(stdout, "")
 	fmt.Fprintln(stdout, "All commands support `--json` for structured output.")
+	fmt.Fprintln(stdout, "")
+	fmt.Fprintln(stdout, "**Note:** App UUIDs are Coolify-assigned identifiers. They may not follow RFC 4122 format — this is normal. Do not attempt to change or reformat them.")
 
 	if anyFail {
 		return errExitCode1
