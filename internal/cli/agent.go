@@ -64,14 +64,19 @@ func resolveAgentConfig(cmd *cobra.Command) (*config.RuntimeConfig, *coolify.Cli
 	}
 
 	// 3. Resolve runtime config (merges global + project deny lists).
-	runtime, err := config.ResolveRuntime(globalCfg, projectCfg)
+	// appName comes from the --app flag (wired in S2); empty string auto-selects the only app.
+	runtime, err := config.ResolveRuntime(globalCfg, projectCfg, "")
 	if err != nil {
 		return nil, nil, nil, err
 	}
 
 	// 4. Build permission enforcer from the canonical permissions package.
-	// This avoids duplicating deny-list logic in the CLI layer.
-	enforcer := permissions.NewEnforcer(*globalCfg, *projectCfg)
+	// Pass the resolved app's deny list for three-layer enforcement.
+	var appDeny []string
+	if app, ok := projectCfg.Apps[runtime.AppName]; ok {
+		appDeny = app.Permissions.Deny
+	}
+	enforcer := permissions.NewEnforcer(*globalCfg, *projectCfg, appDeny)
 
 	// 5. Create Coolify client.
 	client := coolify.NewClient(runtime.InstanceURL, runtime.Token)

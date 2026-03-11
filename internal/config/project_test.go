@@ -34,11 +34,212 @@ permissions:
 	if cfg.Instance != "my-coolify" {
 		t.Errorf("Instance: got %q, want %q", cfg.Instance, "my-coolify")
 	}
-	if cfg.AppUUID != "hgkks00abc123" {
-		t.Errorf("AppUUID: got %q, want %q", cfg.AppUUID, "hgkks00abc123")
+	// Legacy app_uuid is normalised to Apps["default"] after loading.
+	if cfg.AppUUID != "" {
+		t.Errorf("AppUUID should be cleared after normalisation, got %q", cfg.AppUUID)
+	}
+	defaultApp, ok := cfg.Apps["default"]
+	if !ok {
+		t.Fatal("expected Apps[\"default\"] after legacy normalisation")
+	}
+	if defaultApp.UUID != "hgkks00abc123" {
+		t.Errorf("Apps[default].UUID: got %q, want %q", defaultApp.UUID, "hgkks00abc123")
 	}
 	if len(cfg.Permissions.Deny) != 1 || cfg.Permissions.Deny[0] != "deploy" {
 		t.Errorf("Permissions.Deny: got %v, want [deploy]", cfg.Permissions.Deny)
+	}
+}
+
+// TestLoadProject_MultiApp verifies that a multi-app YAML loads correctly,
+// the Apps map is populated, and AppUUID is empty (not set in multi-app format).
+func TestLoadProject_MultiApp(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, ".safe-ify.yaml")
+	content := []byte(`instance: my-coolify
+apps:
+  api:
+    uuid: api-uuid-001
+    permissions:
+      deny: []
+  worker:
+    uuid: worker-uuid-002
+    permissions:
+      deny:
+        - deploy
+`)
+	if err := os.WriteFile(cfgPath, content, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	cfg, err := LoadProject(cfgPath)
+	if err != nil {
+		t.Fatalf("LoadProject returned unexpected error: %v", err)
+	}
+	if cfg.AppUUID != "" {
+		t.Errorf("AppUUID should be empty in multi-app format, got %q", cfg.AppUUID)
+	}
+	if len(cfg.Apps) != 2 {
+		t.Fatalf("expected 2 apps, got %d", len(cfg.Apps))
+	}
+	api, ok := cfg.Apps["api"]
+	if !ok {
+		t.Fatal("expected Apps[\"api\"] to exist")
+	}
+	if api.UUID != "api-uuid-001" {
+		t.Errorf("Apps[api].UUID: got %q, want %q", api.UUID, "api-uuid-001")
+	}
+	worker, ok := cfg.Apps["worker"]
+	if !ok {
+		t.Fatal("expected Apps[\"worker\"] to exist")
+	}
+	if worker.UUID != "worker-uuid-002" {
+		t.Errorf("Apps[worker].UUID: got %q, want %q", worker.UUID, "worker-uuid-002")
+	}
+}
+
+// TestLoadProject_Legacy verifies that a legacy single-app YAML (with app_uuid)
+// is normalised to an Apps map with key "default".
+func TestLoadProject_Legacy(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, ".safe-ify.yaml")
+	content := []byte(`instance: my-coolify
+app_uuid: legacy-uuid-abc
+`)
+	if err := os.WriteFile(cfgPath, content, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	cfg, err := LoadProject(cfgPath)
+	if err != nil {
+		t.Fatalf("LoadProject returned unexpected error: %v", err)
+	}
+	if cfg.AppUUID != "" {
+		t.Errorf("AppUUID should be cleared after normalisation, got %q", cfg.AppUUID)
+	}
+	defaultApp, ok := cfg.Apps["default"]
+	if !ok {
+		t.Fatal("expected Apps[\"default\"] after legacy normalisation")
+	}
+	if defaultApp.UUID != "legacy-uuid-abc" {
+		t.Errorf("Apps[default].UUID: got %q, want %q", defaultApp.UUID, "legacy-uuid-abc")
+	}
+}
+
+// TestLoadProject_BothFormats verifies that a YAML containing both app_uuid and
+// apps fields returns an error.
+func TestLoadProject_BothFormats(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, ".safe-ify.yaml")
+	content := []byte(`instance: my-coolify
+app_uuid: legacy-uuid-abc
+apps:
+  api:
+    uuid: api-uuid-001
+`)
+	if err := os.WriteFile(cfgPath, content, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := LoadProject(cfgPath)
+	if err == nil {
+		t.Fatal("expected error for config with both app_uuid and apps, got nil")
+	}
+}
+
+// TestLoadProject_EmptyApps verifies that a YAML with an empty apps: map returns
+// an error (neither legacy nor valid multi-app format).
+func TestLoadProject_EmptyApps(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, ".safe-ify.yaml")
+	// YAML parses an empty map (apps: {}) as len==0, which hits the default case.
+	content := []byte(`instance: my-coolify
+apps: {}
+`)
+	if err := os.WriteFile(cfgPath, content, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := LoadProject(cfgPath)
+	if err == nil {
+		t.Fatal("expected error for config with empty apps map, got nil")
+	}
+}
+
+// TestLoadProject_InvalidAppName verifies that an app name containing spaces or
+// special characters is rejected.
+func TestLoadProject_InvalidAppName(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, ".safe-ify.yaml")
+	// App name "my app" contains a space, which is invalid.
+	content := []byte(`instance: my-coolify
+apps:
+  "my app":
+    uuid: some-uuid-123
+`)
+	if err := os.WriteFile(cfgPath, content, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := LoadProject(cfgPath)
+	if err == nil {
+		t.Fatal("expected error for invalid app name containing space, got nil")
+	}
+}
+
+// TestLoadProject_MissingAppUUID verifies that an app entry with an empty uuid
+// field returns an error.
+func TestLoadProject_MissingAppUUID(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, ".safe-ify.yaml")
+	content := []byte(`instance: my-coolify
+apps:
+  api:
+    uuid: ""
+`)
+	if err := os.WriteFile(cfgPath, content, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := LoadProject(cfgPath)
+	if err == nil {
+		t.Fatal("expected error for app with empty uuid, got nil")
+	}
+}
+
+// TestLoadProject_InvalidAppDeny verifies that a multi-app config with an unknown
+// command in an app's deny list returns an error.
+func TestLoadProject_InvalidAppDeny(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, ".safe-ify.yaml")
+	content := []byte(`instance: my-coolify
+apps:
+  api:
+    uuid: api-uuid-001
+    permissions:
+      deny:
+        - delete
+`)
+	if err := os.WriteFile(cfgPath, content, 0o644); err != nil {
+		t.Fatalf("write file: %v", err)
+	}
+
+	_, err := LoadProject(cfgPath)
+	if err == nil {
+		t.Fatal("expected error for unknown command \"delete\" in app deny list, got nil")
 	}
 }
 

@@ -9,12 +9,13 @@ import (
 // Enforcer holds the resolved allow/deny state for agent commands.
 type Enforcer struct {
 	allowed  map[string]bool
-	deniedBy map[string]string // command -> "global" or "project"
+	deniedBy map[string]string // command -> "global", "project", or "app"
 }
 
-// NewEnforcer builds an Enforcer by applying global and project deny lists.
-// Global denials are applied first; project denials can only further restrict.
-func NewEnforcer(global config.GlobalConfig, project config.ProjectConfig) *Enforcer {
+// NewEnforcer builds an Enforcer by applying global, project, and app deny lists.
+// Global denials are applied first; project denials can only further restrict;
+// app denials can only further restrict beyond project.
+func NewEnforcer(global config.GlobalConfig, project config.ProjectConfig, appDeny []string) *Enforcer {
 	allowed := make(map[string]bool, len(AllAgentCommands))
 	deniedBy := make(map[string]string)
 
@@ -34,6 +35,14 @@ func NewEnforcer(global config.GlobalConfig, project config.ProjectConfig) *Enfo
 		if allowed[cmd] {
 			// Only mark denied-by project if not already denied globally.
 			deniedBy[cmd] = "project"
+		}
+		allowed[cmd] = false
+	}
+
+	// Apply app denials (can only restrict further, never escalate).
+	for _, cmd := range appDeny {
+		if allowed[cmd] {
+			deniedBy[cmd] = "app"
 		}
 		allowed[cmd] = false
 	}

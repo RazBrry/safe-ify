@@ -23,12 +23,23 @@ type PermissionConfig struct {
 	Deny []string `yaml:"deny"`
 }
 
+// AppConfig holds the configuration for a single named app within a project.
+type AppConfig struct {
+	UUID        string           `yaml:"uuid"`
+	Permissions PermissionConfig `yaml:"permissions"`
+}
+
 // ProjectConfig represents a per-project config stored in .safe-ify.yaml.
+// Supports two formats:
+//   - Legacy: Instance + AppUUID + Permissions (single app)
+//   - Multi:  Instance + Apps map + Permissions (project-level deny)
+//
 // This file contains no secrets and can be committed to version control.
 type ProjectConfig struct {
-	Instance    string           `yaml:"instance"`
-	AppUUID     string           `yaml:"app_uuid"`
-	Permissions PermissionConfig `yaml:"permissions"`
+	Instance    string               `yaml:"instance"`
+	AppUUID     string               `yaml:"app_uuid,omitempty"`     // legacy single-app
+	Apps        map[string]AppConfig `yaml:"apps,omitempty"`         // multi-app
+	Permissions PermissionConfig     `yaml:"permissions"`
 }
 
 // RuntimeConfig is the resolved configuration for a single command invocation.
@@ -38,5 +49,6 @@ type RuntimeConfig struct {
 	InstanceURL  string
 	Token        string
 	AppUUID      string
-	AllowedCmds  map[string]bool // computed from global + project deny lists
+	AppName      string          // the selected app's name
+	AllowedCmds  map[string]bool // computed from global + project + app deny lists
 }

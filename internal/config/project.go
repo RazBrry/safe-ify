@@ -4,14 +4,40 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"gopkg.in/yaml.v3"
 )
 
 const projectConfigFilename = ".safe-ify.yaml"
 
+// validAppName is the accepted pattern for app map keys.
+var validAppName = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$`)
+
+// knownAgentCommands is the authoritative list of agent-facing commands.
+// Keep in sync with permissions.AllAgentCommands.
+var knownAgentCommands = map[string]bool{
+	"deploy":   true,
+	"redeploy": true,
+	"logs":     true,
+	"status":   true,
+	"list":     true,
+}
+
+// validateDenyList returns an error if any entry in deny is not a known agent command.
+func validateDenyList(deny []string) error {
+	for _, cmd := range deny {
+		if !knownAgentCommands[cmd] {
+			return fmt.Errorf("unknown command in deny list: %q", cmd)
+		}
+	}
+	return nil
+}
+
 // LoadProject reads and parses the project config file at path.
-// It validates that the instance name and app_uuid fields are not empty.
+// It auto-detects legacy (app_uuid) and multi-app (apps) formats,
+// normalises legacy configs to the internal multi-app representation,
+// and validates all fields.
 func LoadProject(path string) (*ProjectConfig, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -29,8 +55,55 @@ func LoadProject(path string) (*ProjectConfig, error) {
 	if cfg.Instance == "" {
 		return nil, fmt.Errorf("project config %q: 'instance' field is required", path)
 	}
-	if cfg.AppUUID == "" {
-		return nil, fmt.Errorf("project config %q: 'app_uuid' field is required", path)
+
+	// Format detection (D2, D5).
+	hasLegacy := cfg.AppUUID != ""
+	hasMulti := len(cfg.Apps) > 0
+
+	switch {
+	case hasLegacy && hasMulti:
+		return nil, fmt.Errorf("config has both 'app_uuid' and 'apps'; use only one format")
+
+	case hasLegacy:
+		// Legacy format: normalise to single-entry Apps map.
+		cfg.Apps = map[string]AppConfig{
+			"default": {
+				UUID:        cfg.AppUUID,
+				Permissions: PermissionConfig{Deny: []string{}},
+			},
+		}
+		cfg.AppUUID = ""
+
+	case hasMulti:
+		// Multi-app format: validate each app entry.
+		for name, app := range cfg.Apps {
+			if !validAppName.MatchString(name) {
+				return nil, fmt.Errorf(
+					"project config %q: invalid app name %q (must match ^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$)",
+					path, name,
+				)
+			}
+			if app.UUID == "" {
+				return nil, fmt.Errorf(
+					"project config %q: app %q has an empty uuid",
+					path, name,
+				)
+			}
+			if err := validateDenyList(app.Permissions.Deny); err != nil {
+				return nil, fmt.Errorf(
+					"project config %q: app %q deny list: %w",
+					path, name, err,
+				)
+			}
+		}
+
+	default:
+		return nil, fmt.Errorf("project config %q: no apps configured", path)
+	}
+
+	// Validate project-level deny list.
+	if err := validateDenyList(cfg.Permissions.Deny); err != nil {
+		return nil, fmt.Errorf("project config %q: project deny list: %w", path, err)
 	}
 
 	return &cfg, nil
@@ -62,6 +135,8 @@ func FindProjectConfig(startDir string) (string, error) {
 
 // SaveProject marshals cfg to YAML and writes it to path with 0644 permissions.
 // The file contains no secrets and can be committed to version control.
+// It always writes the multi-app format; the legacy app_uuid field is omitted
+// because it is cleared during LoadProject.
 func SaveProject(path string, cfg *ProjectConfig) error {
 	data, err := yaml.Marshal(cfg)
 	if err != nil {

@@ -63,12 +63,37 @@ func (e *InstanceNotFoundError) Error() string {
 // PermissionDeniedError is returned when a command is denied by a permission policy.
 type PermissionDeniedError struct {
 	Command  string
-	DeniedBy string // "global" or "project"
+	DeniedBy string // "global", "project", or "app"
 }
 
 func (e *PermissionDeniedError) Error() string {
 	return fmt.Sprintf(
 		"command %q is not permitted for this project (denied by %s config)",
 		e.Command, e.DeniedBy,
+	)
+}
+
+// AppNotFoundError is returned when the requested app name is not present in the project config.
+type AppNotFoundError struct {
+	Name          string
+	AvailableApps []string
+}
+
+func (e *AppNotFoundError) Error() string {
+	return fmt.Sprintf(
+		"app %q not found in project config; available apps: %v",
+		e.Name, e.AvailableApps,
+	)
+}
+
+// AppAmbiguousError is returned when no app name is specified but multiple apps are configured.
+type AppAmbiguousError struct {
+	AvailableApps []string
+}
+
+func (e *AppAmbiguousError) Error() string {
+	return fmt.Sprintf(
+		"multiple apps configured; specify one with --app: %v",
+		e.AvailableApps,
 	)
 }

@@ -15,7 +15,7 @@ var AllAgentCommands = []string{
 // PermissionDeniedError is returned when a command is not permitted for a project.
 type PermissionDeniedError struct {
 	Command  string
-	DeniedBy string // "global" or "project"
+	DeniedBy string // "global", "project", or "app"
 }
 
 // Error implements the error interface.

@@ -202,30 +202,35 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(stderr, "  [PASS] Instance %q found (%s)\n", projectCfg.Instance, inst.URL)
 	}
 
-	// Check (g): app UUID valid — call GetApplication.
+	// Check (g): app UUID valid — call GetApplication for each app in the Apps map.
 	fmt.Fprintln(stderr, "[7/8] App UUID check")
-	var appName string
+	// appNames maps app key -> resolved name (for CLAUDE.md snippet).
+	appNames := make(map[string]string, len(projectCfg.Apps))
 	if !instOK {
 		fmt.Fprintln(stderr, "  [SKIP] No valid instance to use for API call")
 	} else {
 		client := coolify.NewClient(inst.URL, inst.Token)
-		app, appErr := client.GetApplication(context.Background(), projectCfg.AppUUID)
-		if appErr != nil {
-			fmt.Fprintf(stderr, "  [FAIL] App UUID %q: %s\n", projectCfg.AppUUID, appErr)
-			anyFail = true
-		} else {
-			appName = app.Name
-			fmt.Fprintf(stderr, "  [PASS] App UUID %q — name: %q\n", projectCfg.AppUUID, app.Name)
+		for appKey, appCfg := range projectCfg.Apps {
+			app, appErr := client.GetApplication(context.Background(), appCfg.UUID)
+			if appErr != nil {
+				fmt.Fprintf(stderr, "  [FAIL] App %q (UUID %q): %s\n", appKey, appCfg.UUID, appErr)
+				anyFail = true
+			} else {
+				appNames[appKey] = app.Name
+				fmt.Fprintf(stderr, "  [PASS] App %q (UUID %q) — name: %q\n", appKey, appCfg.UUID, app.Name)
+			}
 		}
 	}
 
-	// Check (h): resolve permissions, list allowed and denied.
+	// Check (h): resolve permissions per app, list allowed and denied.
 	fmt.Fprintln(stderr, "[8/8] Permissions check")
-	enforcer := permissions.NewEnforcer(*globalCfg, *projectCfg)
-	allowedCmds := enforcer.AllowedCommands()
-	deniedCmds := enforcer.DeniedCommands()
-	fmt.Fprintf(stderr, "  Allowed: %v\n", allowedCmds)
-	fmt.Fprintf(stderr, "  Denied:  %v\n", deniedCmds)
+	for appKey, appCfg := range projectCfg.Apps {
+		enforcer := permissions.NewEnforcer(*globalCfg, *projectCfg, appCfg.Permissions.Deny)
+		allowedCmds := enforcer.AllowedCommands()
+		deniedCmds := enforcer.DeniedCommands()
+		fmt.Fprintf(stderr, "  App %q — Allowed: %v\n", appKey, allowedCmds)
+		fmt.Fprintf(stderr, "  App %q — Denied:  %v\n", appKey, deniedCmds)
+	}
 	fmt.Fprintln(stderr, "  [PASS]")
 
 	fmt.Fprintln(stderr, "")
@@ -239,22 +244,29 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	fmt.Fprintln(stdout, "## safe-ify (Coolify Safety Layer)")
 	fmt.Fprintln(stdout, "")
 	fmt.Fprintf(stdout, "Instance: %s (%s)\n", projectCfg.Instance, instanceURL)
-	fmt.Fprintf(stdout, "Application: %s (%s)\n", appName, projectCfg.AppUUID)
 	fmt.Fprintln(stdout, "")
-	fmt.Fprintln(stdout, "### Available commands")
-	fmt.Fprintln(stdout, "")
-	fmt.Fprintln(stdout, "| Command | Status |")
-	fmt.Fprintln(stdout, "|---------|--------|")
 
-	for _, cd := range commandDisplay {
-		status := "Allowed"
-		if enforcer.Check(cd.name) != nil {
-			status = "Denied"
+	for appKey, appCfg := range projectCfg.Apps {
+		resolvedName := appNames[appKey]
+		fmt.Fprintf(stdout, "Application: %s — %s (%s)\n", appKey, resolvedName, appCfg.UUID)
+
+		enforcer := permissions.NewEnforcer(*globalCfg, *projectCfg, appCfg.Permissions.Deny)
+		fmt.Fprintln(stdout, "")
+		fmt.Fprintf(stdout, "### Available commands (%s)\n", appKey)
+		fmt.Fprintln(stdout, "")
+		fmt.Fprintln(stdout, "| Command | Status |")
+		fmt.Fprintln(stdout, "|---------|--------|")
+
+		for _, cd := range commandDisplay {
+			status := "Allowed"
+			if enforcer.Check(cd.name) != nil {
+				status = "Denied"
+			}
+			fmt.Fprintf(stdout, "| %s | %s |\n", cd.display, status)
 		}
-		fmt.Fprintf(stdout, "| %s | %s |\n", cd.display, status)
+		fmt.Fprintln(stdout, "")
 	}
 
-	fmt.Fprintln(stdout, "")
 	fmt.Fprintln(stdout, "### Usage")
 	fmt.Fprintln(stdout, "")
 	fmt.Fprintln(stdout, "All commands support `--json` for structured output.")
