@@ -41,7 +41,11 @@ func ResolveRuntime(global *GlobalConfig, project *ProjectConfig, appName string
 	}
 
 	// All known agent commands — keep in sync with permissions.AllAgentCommands.
-	allCmds := []string{"deploy", "redeploy", "logs", "status", "list", "env-read", "env-write"}
+	allCmds := []string{
+		"deploy", "redeploy", "logs", "status", "list",
+		"env-read", "env-write",
+		"deployments", "domains", "resources", "rollback", "preview-deploy",
+	}
 
 	allowed := make(map[string]bool, len(allCmds))
 	for _, cmd := range allCmds {
