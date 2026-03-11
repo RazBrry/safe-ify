@@ -102,7 +102,7 @@ func newDoctorMockServer(t *testing.T, appName string) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/healthcheck":
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/health":
 			w.WriteHeader(http.StatusOK)
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/version":
 			w.Header().Set("Content-Type", "application/json")

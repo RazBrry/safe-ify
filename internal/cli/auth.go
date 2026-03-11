@@ -59,7 +59,7 @@ func loadOrCreateGlobal(path string) (*config.GlobalConfig, error) {
 }
 
 // validateToken verifies connectivity and authentication by trying
-// /api/v1/version (authenticated). Falls back to /api/v1/healthcheck if
+// /api/v1/version (authenticated). Falls back to /api/v1/health if
 // version returns 404 (older Coolify versions).
 func validateToken(rawURL, token string) error {
 	if !strings.Contains(rawURL, "://") {
@@ -69,7 +69,7 @@ func validateToken(rawURL, token string) error {
 	client := &http.Client{Timeout: 15 * time.Second}
 
 	// Try /api/v1/version first (requires valid token).
-	for _, path := range []string{"/api/v1/version", "/api/v1/healthcheck"} {
+	for _, path := range []string{"/api/v1/version", "/api/v1/health"} {
 		endpoint := base + path
 
 		req, err := http.NewRequest(http.MethodGet, endpoint, nil)
@@ -97,7 +97,7 @@ func validateToken(rawURL, token string) error {
 		}
 	}
 
-	return fmt.Errorf("could not validate token: neither /api/v1/version nor /api/v1/healthcheck responded (both returned 404)")
+	return fmt.Errorf("could not validate token: neither /api/v1/version nor /api/v1/health responded (both returned 404)")
 }
 
 // maskToken returns the first 4 characters of the token followed by "****",

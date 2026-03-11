@@ -238,7 +238,7 @@ func TestDoctorCmd_MultiApp(t *testing.T) {
 	// Mock server that handles all API calls made by doctor for multi-app config.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
-		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/healthcheck":
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/health":
 			w.WriteHeader(http.StatusOK)
 
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/version":

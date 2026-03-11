@@ -27,9 +27,9 @@ func validateUUID(id string) error {
 	return nil
 }
 
-// Healthcheck calls GET /api/v1/healthcheck. Returns nil on 200.
+// Healthcheck calls GET /api/v1/health. Returns nil on 200.
 func (c *Client) Healthcheck(ctx context.Context) error {
-	resp, err := c.doRequest(ctx, "GET", "/api/v1/healthcheck", nil)
+	resp, err := c.doRequest(ctx, "GET", "/api/v1/health", nil)
 	if err != nil {
 		return err
 	}
