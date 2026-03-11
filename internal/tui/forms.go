@@ -128,20 +128,26 @@ func InitSelectInstanceForm(instances []string, selected *string) *huh.Form {
 	)
 }
 
-// InitSelectAppForm builds and returns a huh.Form that presents a select list
-// of applications. Each option displays the app name together with its UUID.
-func InitSelectAppForm(apps []AppOption, selected *string) *huh.Form {
+// InitMultiSelectAppForm builds a multi-select form for Coolify applications.
+// Apps whose UUIDs appear in alreadySelected are pre-checked.
+func InitMultiSelectAppForm(apps []AppOption, alreadySelected []string, selected *[]string) *huh.Form {
+	// Build a set for quick lookup of pre-selected UUIDs.
+	preSelected := make(map[string]bool, len(alreadySelected))
+	for _, uuid := range alreadySelected {
+		preSelected[uuid] = true
+	}
+
 	options := make([]huh.Option[string], len(apps))
 	for i, app := range apps {
 		label := fmt.Sprintf("%s (%s)", app.Name, app.UUID)
-		options[i] = huh.NewOption(label, app.UUID)
+		options[i] = huh.NewOption(label, app.UUID).Selected(preSelected[app.UUID])
 	}
 
 	return huh.NewForm(
 		huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Select application").
-				Description("Choose the Coolify application to deploy for this project.").
+			huh.NewMultiSelect[string]().
+				Title("Select applications").
+				Description("Choose which Coolify apps to manage in this project. Already configured apps are pre-selected.").
 				Options(options...).
 				Value(selected),
 		),

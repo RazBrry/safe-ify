@@ -127,199 +127,78 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no instances configured — run `safe-ify auth add` first")
 	}
 
-	// Step b: determine current directory and check for existing project config.
+	// Step b: determine current directory and load existing project config (if any).
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("cannot determine current directory: %w", err)
 	}
 	outputPath := filepath.Join(cwd, ".safe-ify.yaml")
 
-	existingConfig := false
+	var projectCfg *config.ProjectConfig
 	if _, statErr := os.Stat(outputPath); statErr == nil {
-		existingConfig = true
+		projectCfg, err = config.LoadProject(outputPath)
+		if err != nil {
+			return fmt.Errorf("cannot load existing project config: %w", err)
+		}
 	}
 
-	if existingConfig {
-		return runInitAddApp(globalCfg, outputPath)
-	}
-	return runInitNew(globalCfg, outputPath)
-}
-
-// runInitNew handles the flow when no project config exists (Case A).
-func runInitNew(globalCfg *config.GlobalConfig, outputPath string) error {
-	// Step c: collect instance names.
-	instanceNames := make([]string, 0, len(globalCfg.Instances))
-	for name := range globalCfg.Instances {
-		instanceNames = append(instanceNames, name)
-	}
-
-	// Step d: instance picker TUI.
+	// Step c: select instance.
 	var selectedInstance string
-	if err := tui.InitSelectInstanceForm(instanceNames, &selectedInstance).Run(); err != nil {
-		if errors.Is(err, huh.ErrUserAborted) {
-			fmt.Println(tui.InfoStyle.Render("Aborted."))
-			return nil
-		}
-		return fmt.Errorf("instance picker error: %w", err)
-	}
-
-	inst := globalCfg.Instances[selectedInstance]
-
-	// Step e: fetch application list from the selected instance.
-	fmt.Println(tui.InfoStyle.Render("Fetching applications from Coolify..."))
-
-	coolifyApps, err := fetchApplications(inst.URL, inst.Token)
-	if err != nil {
-		return fmt.Errorf("cannot fetch applications: %w", err)
-	}
-
-	if len(coolifyApps) == 0 {
-		return fmt.Errorf("no applications found on instance %q", selectedInstance)
-	}
-
-	// Convert to AppOption slice for the TUI.
-	appOptions := make([]tui.AppOption, len(coolifyApps))
-	for i, a := range coolifyApps {
-		appOptions[i] = tui.AppOption{Name: a.Name, UUID: a.UUID}
-	}
-
-	// Step f: application picker TUI.
-	var selectedAppUUID string
-	if err := tui.InitSelectAppForm(appOptions, &selectedAppUUID).Run(); err != nil {
-		if errors.Is(err, huh.ErrUserAborted) {
-			fmt.Println(tui.InfoStyle.Render("Aborted."))
-			return nil
-		}
-		return fmt.Errorf("application picker error: %w", err)
-	}
-
-	// Resolve the Coolify app name for the selected UUID.
-	coolifyAppName := selectedAppUUID
-	for _, a := range coolifyApps {
-		if a.UUID == selectedAppUUID {
-			coolifyAppName = a.Name
-			break
-		}
-	}
-
-	// Step g: app name prompt.
-	defaultName := sanitizeAppName(coolifyAppName)
-	var appNameValue string
-	if err := tui.InitAppNameForm(defaultName, nil, &appNameValue).Run(); err != nil {
-		if errors.Is(err, huh.ErrUserAborted) {
-			fmt.Println(tui.InfoStyle.Render("Aborted."))
-			return nil
-		}
-		return fmt.Errorf("app name form error: %w", err)
-	}
-
-	// Step h: permission deny-list TUI.
-	var denyList []string
-	if err := tui.InitPermissionsForm(permissions.AllAgentCommands, &denyList).Run(); err != nil {
-		if errors.Is(err, huh.ErrUserAborted) {
-			fmt.Println(tui.InfoStyle.Render("Aborted."))
-			return nil
-		}
-		return fmt.Errorf("permissions form error: %w", err)
-	}
-
-	// Step i: validate deny list.
-	if err := permissions.ValidateDenyList(denyList); err != nil {
-		return fmt.Errorf("invalid deny list: %w", err)
-	}
-	if denyList == nil {
-		denyList = []string{}
-	}
-
-	// Step j: build ProjectConfig in multi-app format.
-	projectCfg := &config.ProjectConfig{
-		Instance: selectedInstance,
-		Apps: map[string]config.AppConfig{
-			appNameValue: {
-				UUID:        selectedAppUUID,
-				Permissions: config.PermissionConfig{Deny: denyList},
-			},
-		},
-		Permissions: config.PermissionConfig{Deny: []string{}},
-	}
-
-	// Step k: save to .safe-ify.yaml.
-	if err := config.SaveProject(outputPath, projectCfg); err != nil {
-		return fmt.Errorf("cannot save project config: %w", err)
-	}
-
-	// Step l: print success summary.
-	fmt.Println(tui.SuccessStyle.Render("Project initialised successfully."))
-	fmt.Printf("  Instance:    %s\n", selectedInstance)
-	fmt.Printf("  App name:    %s\n", appNameValue)
-	fmt.Printf("  Application: %s (%s)\n", coolifyAppName, selectedAppUUID)
-	if len(denyList) == 0 {
-		fmt.Printf("  Deny list:   (none — all commands allowed)\n")
+	if projectCfg != nil {
+		// Reuse existing instance.
+		selectedInstance = projectCfg.Instance
+		fmt.Printf("  Instance: %s (from existing config)\n", selectedInstance)
 	} else {
-		fmt.Printf("  Deny list:   %s\n", strings.Join(denyList, ", "))
-	}
-	fmt.Printf("  Config:      %s\n", outputPath)
-
-	return nil
-}
-
-// runInitAddApp handles the flow when a project config already exists (Case B).
-func runInitAddApp(globalCfg *config.GlobalConfig, outputPath string) error {
-	// Load and auto-normalize existing config (handles legacy format per D2).
-	projectCfg, err := config.LoadProject(outputPath)
-	if err != nil {
-		return fmt.Errorf("cannot load existing project config: %w", err)
-	}
-
-	// Prompt: "Add another app?"
-	var addAnother bool
-	addForm := huh.NewForm(
-		huh.NewGroup(
-			huh.NewConfirm().
-				Title("Existing project config found. Add another app to this project?").
-				Value(&addAnother),
-		),
-	)
-	if err := addForm.Run(); err != nil {
-		if errors.Is(err, huh.ErrUserAborted) {
-			fmt.Println(tui.InfoStyle.Render("Aborted."))
-			return nil
+		instanceNames := make([]string, 0, len(globalCfg.Instances))
+		for name := range globalCfg.Instances {
+			instanceNames = append(instanceNames, name)
 		}
-		return fmt.Errorf("confirmation form error: %w", err)
-	}
-	if !addAnother {
-		fmt.Println(tui.InfoStyle.Render("No changes made."))
-		return nil
+		if err := tui.InitSelectInstanceForm(instanceNames, &selectedInstance).Run(); err != nil {
+			if errors.Is(err, huh.ErrUserAborted) {
+				fmt.Println(tui.InfoStyle.Render("Aborted."))
+				return nil
+			}
+			return fmt.Errorf("instance picker error: %w", err)
+		}
 	}
 
-	// Use the existing instance.
-	selectedInstance := projectCfg.Instance
 	inst, ok := globalCfg.Instances[selectedInstance]
 	if !ok {
 		return fmt.Errorf("instance %q not found in global config", selectedInstance)
 	}
 
-	// Fetch application list.
+	// Step d: fetch all applications from Coolify.
 	fmt.Println(tui.InfoStyle.Render("Fetching applications from Coolify..."))
 
 	coolifyApps, err := fetchApplications(inst.URL, inst.Token)
 	if err != nil {
 		return fmt.Errorf("cannot fetch applications: %w", err)
 	}
-
 	if len(coolifyApps) == 0 {
 		return fmt.Errorf("no applications found on instance %q", selectedInstance)
 	}
 
-	// Convert to AppOption slice for the TUI.
+	// Build lookup: UUID → Coolify app name.
+	coolifyNameByUUID := make(map[string]string, len(coolifyApps))
 	appOptions := make([]tui.AppOption, len(coolifyApps))
 	for i, a := range coolifyApps {
+		coolifyNameByUUID[a.UUID] = a.Name
 		appOptions[i] = tui.AppOption{Name: a.Name, UUID: a.UUID}
 	}
 
-	// Application picker TUI.
-	var selectedAppUUID string
-	if err := tui.InitSelectAppForm(appOptions, &selectedAppUUID).Run(); err != nil {
+	// Determine which UUIDs are already configured (for pre-selection).
+	var alreadySelected []string
+	existingByUUID := make(map[string]string) // UUID → config key name
+	if projectCfg != nil {
+		for name, appCfg := range projectCfg.Apps {
+			alreadySelected = append(alreadySelected, appCfg.UUID)
+			existingByUUID[appCfg.UUID] = name
+		}
+	}
+
+	// Step e: multi-select applications.
+	var selectedUUIDs []string
+	if err := tui.InitMultiSelectAppForm(appOptions, alreadySelected, &selectedUUIDs).Run(); err != nil {
 		if errors.Is(err, huh.ErrUserAborted) {
 			fmt.Println(tui.InfoStyle.Render("Aborted."))
 			return nil
@@ -327,75 +206,131 @@ func runInitAddApp(globalCfg *config.GlobalConfig, outputPath string) error {
 		return fmt.Errorf("application picker error: %w", err)
 	}
 
-	// Resolve Coolify app name.
-	coolifyAppName := selectedAppUUID
-	for _, a := range coolifyApps {
-		if a.UUID == selectedAppUUID {
-			coolifyAppName = a.Name
-			break
+	if len(selectedUUIDs) == 0 {
+		return fmt.Errorf("no applications selected")
+	}
+
+	// Step f: determine which apps are new (need name + permissions prompts).
+	newUUIDs := make([]string, 0)
+	selectedSet := make(map[string]bool, len(selectedUUIDs))
+	for _, uuid := range selectedUUIDs {
+		selectedSet[uuid] = true
+		if _, exists := existingByUUID[uuid]; !exists {
+			newUUIDs = append(newUUIDs, uuid)
 		}
 	}
 
-	// Collect existing app names to prevent duplicates.
-	existingNames := make([]string, 0, len(projectCfg.Apps))
-	for name := range projectCfg.Apps {
-		existingNames = append(existingNames, name)
-	}
+	// Build the new Apps map, starting with existing apps that are still selected.
+	apps := make(map[string]config.AppConfig)
+	usedNames := make(map[string]bool)
+	var removedApps []string
 
-	// App name prompt.
-	defaultName := sanitizeAppName(coolifyAppName)
-	var appNameValue string
-	if err := tui.InitAppNameForm(defaultName, existingNames, &appNameValue).Run(); err != nil {
-		if errors.Is(err, huh.ErrUserAborted) {
-			fmt.Println(tui.InfoStyle.Render("Aborted."))
-			return nil
+	if projectCfg != nil {
+		for name, appCfg := range projectCfg.Apps {
+			if selectedSet[appCfg.UUID] {
+				// Keep existing app (preserve its config name and permissions).
+				apps[name] = appCfg
+				usedNames[name] = true
+			} else {
+				removedApps = append(removedApps, name)
+			}
 		}
-		return fmt.Errorf("app name form error: %w", err)
 	}
 
-	// Permission deny-list TUI.
-	var denyList []string
-	if err := tui.InitPermissionsForm(permissions.AllAgentCommands, &denyList).Run(); err != nil {
-		if errors.Is(err, huh.ErrUserAborted) {
-			fmt.Println(tui.InfoStyle.Render("Aborted."))
-			return nil
+	// Step g: for each new app, prompt for config name and permissions.
+	existingNamesList := make([]string, 0, len(usedNames))
+	for name := range usedNames {
+		existingNamesList = append(existingNamesList, name)
+	}
+
+	for _, uuid := range newUUIDs {
+		coolifyName := coolifyNameByUUID[uuid]
+		defaultName := sanitizeAppName(coolifyName)
+
+		// Ensure default name doesn't conflict.
+		if usedNames[defaultName] {
+			for i := 2; ; i++ {
+				candidate := fmt.Sprintf("%s-%d", defaultName, i)
+				if !usedNames[candidate] {
+					defaultName = candidate
+					break
+				}
+			}
 		}
-		return fmt.Errorf("permissions form error: %w", err)
+
+		fmt.Printf("\n  Configuring: %s (%s)\n", coolifyName, uuid)
+
+		var appNameValue string
+		if err := tui.InitAppNameForm(defaultName, existingNamesList, &appNameValue).Run(); err != nil {
+			if errors.Is(err, huh.ErrUserAborted) {
+				fmt.Println(tui.InfoStyle.Render("Aborted."))
+				return nil
+			}
+			return fmt.Errorf("app name form error: %w", err)
+		}
+
+		var denyList []string
+		if err := tui.InitPermissionsForm(permissions.AllAgentCommands, &denyList).Run(); err != nil {
+			if errors.Is(err, huh.ErrUserAborted) {
+				fmt.Println(tui.InfoStyle.Render("Aborted."))
+				return nil
+			}
+			return fmt.Errorf("permissions form error: %w", err)
+		}
+		if denyList == nil {
+			denyList = []string{}
+		}
+
+		apps[appNameValue] = config.AppConfig{
+			UUID:        uuid,
+			Permissions: config.PermissionConfig{Deny: denyList},
+		}
+		usedNames[appNameValue] = true
+		existingNamesList = append(existingNamesList, appNameValue)
 	}
 
-	// Validate deny list.
-	if err := permissions.ValidateDenyList(denyList); err != nil {
-		return fmt.Errorf("invalid deny list: %w", err)
+	// Step h: build and save config.
+	newProjectCfg := &config.ProjectConfig{
+		Instance:    selectedInstance,
+		Apps:        apps,
+		Permissions: config.PermissionConfig{Deny: []string{}},
 	}
-	if denyList == nil {
-		denyList = []string{}
-	}
-
-	// Add new app to the Apps map.
-	if projectCfg.Apps == nil {
-		projectCfg.Apps = make(map[string]config.AppConfig)
-	}
-	projectCfg.Apps[appNameValue] = config.AppConfig{
-		UUID:        selectedAppUUID,
-		Permissions: config.PermissionConfig{Deny: denyList},
+	if projectCfg != nil {
+		newProjectCfg.Permissions = projectCfg.Permissions
 	}
 
-	// Save updated config.
-	if err := config.SaveProject(outputPath, projectCfg); err != nil {
+	if err := config.SaveProject(outputPath, newProjectCfg); err != nil {
 		return fmt.Errorf("cannot save project config: %w", err)
 	}
 
-	// Print success summary.
-	fmt.Println(tui.SuccessStyle.Render("App added successfully."))
-	fmt.Printf("  Instance:    %s\n", selectedInstance)
-	fmt.Printf("  App name:    %s\n", appNameValue)
-	fmt.Printf("  Application: %s (%s)\n", coolifyAppName, selectedAppUUID)
-	if len(denyList) == 0 {
-		fmt.Printf("  Deny list:   (none — all commands allowed)\n")
-	} else {
-		fmt.Printf("  Deny list:   %s\n", strings.Join(denyList, ", "))
+	// Step i: print summary.
+	fmt.Println()
+	fmt.Println(tui.SuccessStyle.Render("Project configured successfully."))
+	fmt.Printf("  Instance: %s\n", selectedInstance)
+	fmt.Printf("  Config:   %s\n", outputPath)
+	fmt.Println()
+
+	for name, appCfg := range apps {
+		coolifyName := coolifyNameByUUID[appCfg.UUID]
+		if coolifyName == "" {
+			coolifyName = appCfg.UUID
+		}
+		marker := ""
+		if _, wasExisting := existingByUUID[appCfg.UUID]; !wasExisting {
+			marker = " (new)"
+		}
+		fmt.Printf("  [%s]%s %s (%s)\n", name, marker, coolifyName, appCfg.UUID)
+		if len(appCfg.Permissions.Deny) > 0 {
+			fmt.Printf("    deny: %s\n", strings.Join(appCfg.Permissions.Deny, ", "))
+		}
 	}
-	fmt.Printf("  Config:      %s\n", outputPath)
+
+	if len(removedApps) > 0 {
+		fmt.Println()
+		for _, name := range removedApps {
+			fmt.Printf("  [%s] removed\n", name)
+		}
+	}
 
 	return nil
 }
