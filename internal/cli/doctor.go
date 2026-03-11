@@ -38,6 +38,11 @@ var commandDisplay = []struct {
 	{"list", "`safe-ify list --json`"},
 	{"env-read", "`safe-ify env list --json` / `safe-ify env get --key X --json`"},
 	{"env-write", "`safe-ify env set --key X --value Y --json` / `safe-ify env delete --key X --json`"},
+	{"deployments", "`safe-ify deployments --json`"},
+	{"domains", "`safe-ify domains --json`"},
+	{"resources", "`safe-ify resources --json`"},
+	{"rollback", "`safe-ify rollback --to <sha> --json`"},
+	{"preview-deploy", "`safe-ify preview-deploy --branch <ref> --json`"},
 }
 
 func runDoctor(cmd *cobra.Command, args []string) error {
