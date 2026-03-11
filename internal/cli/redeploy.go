@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/erwinmaasbach/safe-ify/internal/config"
+	"github.com/erwinmaasbach/safe-ify/internal/coolify"
 	"github.com/spf13/cobra"
 )
 
@@ -21,7 +23,45 @@ func init() {
 func runRedeploy(cmd *cobra.Command, args []string) error {
 	useJSON, _ := cmd.Root().PersistentFlags().GetBool("json")
 
-	runtime, client, enforcer, err := resolveAgentConfig(cmd)
+	err := runAgentCommand(cmd, "redeploy", func(cfg *config.RuntimeConfig, client *coolify.Client) (interface{}, error) {
+		if !cfg.AllowedCmds["redeploy"] {
+			err := fmt.Errorf("command %q is not permitted for this project", "redeploy")
+			if useJSON {
+				OutputError(cmd.OutOrStdout(), ErrCodePermissionDenied, err.Error())
+			} else {
+				fmt.Fprintf(cmd.ErrOrStderr(), "Permission denied: %s\n", err)
+			}
+			return nil, errExitCode1
+		}
+
+		if err := client.Restart(context.Background(), cfg.AppUUID); err != nil {
+			if useJSON {
+				OutputError(cmd.OutOrStdout(), mapCoolifyError(err), err.Error())
+			} else {
+				fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", err)
+			}
+			return nil, errExitCode1
+		}
+
+		type redeployData struct {
+			Message string `json:"message"`
+		}
+		data := redeployData{Message: "Restart triggered."}
+
+		if useJSON {
+			OutputJSON(cmd.OutOrStdout(), Response{
+				OK:   true,
+				Data: data,
+			})
+		} else {
+			fmt.Fprintln(cmd.OutOrStdout(), "Restart triggered.")
+		}
+		return data, nil
+	})
+
+	if err == errExitCode1 {
+		return errExitCode1
+	}
 	if err != nil {
 		if useJSON {
 			OutputError(cmd.OutOrStdout(), mapConfigError(err), err.Error())
@@ -30,37 +70,5 @@ func runRedeploy(cmd *cobra.Command, args []string) error {
 		}
 		return errExitCode1
 	}
-
-	// Check permission before making any API call.
-	if err := enforcer.Check("redeploy"); err != nil {
-		if useJSON {
-			OutputError(cmd.OutOrStdout(), ErrCodePermissionDenied, err.Error())
-		} else {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Permission denied: %s\n", err)
-		}
-		return errExitCode1
-	}
-
-	if err := client.Restart(context.Background(), runtime.AppUUID); err != nil {
-		if useJSON {
-			OutputError(cmd.OutOrStdout(), mapCoolifyError(err), err.Error())
-		} else {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", err)
-		}
-		return errExitCode1
-	}
-
-	if useJSON {
-		type redeployData struct {
-			Message string `json:"message"`
-		}
-		OutputJSON(cmd.OutOrStdout(), Response{
-			OK:   true,
-			Data: redeployData{Message: "Restart triggered."},
-		})
-	} else {
-		fmt.Fprintln(cmd.OutOrStdout(), "Restart triggered.")
-	}
-
 	return nil
 }

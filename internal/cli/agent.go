@@ -4,7 +4,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/erwinmaasbach/safe-ify/internal/audit"
 	"github.com/erwinmaasbach/safe-ify/internal/config"
 	"github.com/erwinmaasbach/safe-ify/internal/coolify"
 	"github.com/erwinmaasbach/safe-ify/internal/permissions"
@@ -101,4 +103,42 @@ func mapCoolifyError(err error) string {
 		return ErrCodeNetworkError
 	}
 	return ErrCodeAPIError
+}
+
+// runAgentCommand is an audit middleware wrapper that all five agent commands use.
+// It resolves config, records timing, invokes fn, writes an audit entry, and
+// returns the result. Audit write errors are printed to stderr but do not fail
+// the command.
+func runAgentCommand(cmd *cobra.Command, commandName string, fn func(cfg *config.RuntimeConfig, client *coolify.Client) (interface{}, error)) error {
+	cfg, client, _, err := resolveAgentConfig(cmd)
+	if err != nil {
+		return err
+	}
+
+	logger := audit.NewLogger(audit.DefaultAuditLogPath())
+	start := time.Now()
+
+	result, fnErr := fn(cfg, client)
+	_ = result
+
+	duration := time.Since(start).Milliseconds()
+
+	auditResult := "ok"
+	if fnErr != nil {
+		auditResult = "error"
+	}
+
+	entry := audit.Entry{
+		Timestamp:  start.UTC(),
+		Command:    commandName,
+		AppUUID:    cfg.AppUUID,
+		Instance:   cfg.InstanceName,
+		Result:     auditResult,
+		DurationMs: duration,
+	}
+	if logErr := logger.Log(entry); logErr != nil {
+		fmt.Fprintf(cmd.ErrOrStderr(), "audit: %s\n", logErr)
+	}
+
+	return fnErr
 }

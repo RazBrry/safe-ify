@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/erwinmaasbach/safe-ify/internal/config"
+	"github.com/erwinmaasbach/safe-ify/internal/coolify"
 	"github.com/spf13/cobra"
 )
 
@@ -22,8 +24,52 @@ func init() {
 
 func runLogs(cmd *cobra.Command, args []string) error {
 	useJSON, _ := cmd.Root().PersistentFlags().GetBool("json")
+	tail, _ := cmd.Flags().GetInt("tail")
 
-	runtime, client, enforcer, err := resolveAgentConfig(cmd)
+	err := runAgentCommand(cmd, "logs", func(cfg *config.RuntimeConfig, client *coolify.Client) (interface{}, error) {
+		if !cfg.AllowedCmds["logs"] {
+			err := fmt.Errorf("command %q is not permitted for this project", "logs")
+			if useJSON {
+				OutputError(cmd.OutOrStdout(), ErrCodePermissionDenied, err.Error())
+			} else {
+				fmt.Fprintf(cmd.ErrOrStderr(), "Permission denied: %s\n", err)
+			}
+			return nil, errExitCode1
+		}
+
+		lines, err := client.GetLogs(context.Background(), cfg.AppUUID, tail)
+		if err != nil {
+			if useJSON {
+				OutputError(cmd.OutOrStdout(), mapCoolifyError(err), err.Error())
+			} else {
+				fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", err)
+			}
+			return nil, errExitCode1
+		}
+
+		type logsData struct {
+			Lines []string `json:"lines"`
+			Count int      `json:"count"`
+		}
+		data := logsData{
+			Lines: lines,
+			Count: len(lines),
+		}
+
+		if useJSON {
+			OutputJSON(cmd.OutOrStdout(), Response{
+				OK:   true,
+				Data: data,
+			})
+		} else {
+			fmt.Fprintln(cmd.OutOrStdout(), strings.Join(lines, "\n"))
+		}
+		return data, nil
+	})
+
+	if err == errExitCode1 {
+		return errExitCode1
+	}
 	if err != nil {
 		if useJSON {
 			OutputError(cmd.OutOrStdout(), mapConfigError(err), err.Error())
@@ -32,43 +78,5 @@ func runLogs(cmd *cobra.Command, args []string) error {
 		}
 		return errExitCode1
 	}
-
-	// Check permission before making any API call.
-	if err := enforcer.Check("logs"); err != nil {
-		if useJSON {
-			OutputError(cmd.OutOrStdout(), ErrCodePermissionDenied, err.Error())
-		} else {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Permission denied: %s\n", err)
-		}
-		return errExitCode1
-	}
-
-	tail, _ := cmd.Flags().GetInt("tail")
-	lines, err := client.GetLogs(context.Background(), runtime.AppUUID, tail)
-	if err != nil {
-		if useJSON {
-			OutputError(cmd.OutOrStdout(), mapCoolifyError(err), err.Error())
-		} else {
-			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", err)
-		}
-		return errExitCode1
-	}
-
-	if useJSON {
-		type logsData struct {
-			Lines []string `json:"lines"`
-			Count int      `json:"count"`
-		}
-		OutputJSON(cmd.OutOrStdout(), Response{
-			OK: true,
-			Data: logsData{
-				Lines: lines,
-				Count: len(lines),
-			},
-		})
-	} else {
-		fmt.Fprintln(cmd.OutOrStdout(), strings.Join(lines, "\n"))
-	}
-
 	return nil
 }
