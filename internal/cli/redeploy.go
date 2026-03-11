@@ -16,7 +16,11 @@ var redeployCmd = &cobra.Command{
 	Long: `Restart/redeploy the currently deployed version of the application.
 
 Use --wait to poll until the app is healthy again (checks every --poll-interval
-seconds, times out after --timeout seconds).`,
+seconds, times out after --timeout seconds).
+
+Note: redeploy uses the /restart API endpoint which may require different token
+permissions on some Coolify versions. If you get a 403 error, use "deploy --force"
+instead.`,
 	RunE: runRedeploy,
 }
 

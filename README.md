@@ -52,10 +52,27 @@ safe-ify init
 |---------|-------------|
 | `safe-ify deploy --app api --json` | Trigger deployment |
 | `safe-ify deploy --app api --json --wait` | Deploy and wait for completion (polls status) |
-| `safe-ify redeploy --app api --json` | Redeploy current version |
+| `safe-ify redeploy --app api --json` | Redeploy current version ¹ |
 | `safe-ify logs --app api --json --tail 50` | Fetch recent logs (default: 100 lines) |
 | `safe-ify status --app api --json` | Check deployment status |
 | `safe-ify list --json` | List available applications (no `--app` needed) |
+
+> ¹ `redeploy` uses the Coolify `/restart` endpoint, which may return 403 on some Coolify versions even with the correct token scopes. If you hit this, use `deploy --force` instead.
+
+Both `deploy` and `redeploy` support `--wait` to poll until completion (`--timeout`, `--poll-interval` configurable).
+
+## API token requirements
+
+Create a Coolify API token at **Settings → API Tokens** with these scopes:
+
+| Scope | Required for |
+|-------|-------------|
+| `read` | status, logs, list, deployment polling |
+| `deploy` | deploy, redeploy |
+| `read:sensitive` | reading environment variables (planned) |
+| `write` | modifying environment variables (planned) |
+
+Minimum for current features: **`read` + `deploy`**.
 
 ## Multi-app config
 
