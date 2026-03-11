@@ -135,8 +135,8 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 			projectFound = true
 			fmt.Fprintf(stderr, "  [PASS] %s found\n", projectPath)
 		} else {
-			fmt.Fprintf(stderr, "  [FAIL] %s not found\n", projectPath)
-			anyFail = true
+			fmt.Fprintf(stderr, "  [SKIP] %s not found — skipping project checks\n", projectPath)
+			// Missing project config is not a critical failure; skip remaining project checks.
 		}
 	} else {
 		cwd, cwdErr := os.Getwd()
@@ -146,7 +146,7 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		} else {
 			found, findErr := config.FindProjectConfig(cwd)
 			if findErr != nil {
-				fmt.Fprintf(stderr, "  [FAIL] .safe-ify.yaml not found (searched from %s)\n", cwd)
+				fmt.Fprintf(stderr, "  [SKIP] .safe-ify.yaml not found (searched from %s) — skipping project checks\n", cwd)
 				// Not critical — skip remaining project checks.
 			} else {
 				projectPath = found
@@ -162,6 +162,15 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(stderr, "[7/8] App UUID check — SKIP (no project config)")
 		fmt.Fprintln(stderr, "[8/8] Permissions check — SKIP (no project config)")
 		fmt.Fprintln(stderr, "")
+
+		// Output a partial CLAUDE.md snippet (instance info only, no app/permission sections).
+		fmt.Fprintln(stdout, "## safe-ify (Coolify Safety Layer)")
+		fmt.Fprintln(stdout, "")
+		fmt.Fprintln(stdout, "<!-- No project config found. Run `safe-ify init` to link this project. -->")
+		fmt.Fprintln(stdout, "")
+		fmt.Fprintln(stdout, "### Usage")
+		fmt.Fprintln(stdout, "")
+		fmt.Fprintln(stdout, "All commands support `--json` for structured output.")
 
 		if anyFail {
 			return errExitCode1
