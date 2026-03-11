@@ -12,14 +12,17 @@ import (
 	"strconv"
 )
 
-// uuidPattern matches a standard UUID: 8-4-4-4-12 hexadecimal characters with dashes.
-var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+// identifierPattern matches Coolify resource identifiers: alphanumeric characters,
+// hyphens, and underscores. Coolify uses both RFC 4122 UUIDs and short alphanumeric IDs
+// depending on the version. This pattern blocks path-traversal attacks (e.g., "../admin")
+// while accepting both formats.
+var identifierPattern = regexp.MustCompile(`^[0-9a-zA-Z_-]+$`)
 
-// validateUUID returns an error if uuid does not match the standard UUID format.
-// This prevents path-manipulation attacks (e.g., "../admin", "../../etc/passwd").
-func validateUUID(uuid string) error {
-	if !uuidPattern.MatchString(uuid) {
-		return fmt.Errorf("invalid UUID format: %q — expected xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", uuid)
+// validateUUID checks that the identifier is safe for use in URL paths.
+// It accepts both standard UUIDs and Coolify's short alphanumeric identifiers.
+func validateUUID(id string) error {
+	if id == "" || !identifierPattern.MatchString(id) {
+		return fmt.Errorf("invalid application identifier: %q — must contain only alphanumeric characters, hyphens, or underscores", id)
 	}
 	return nil
 }
