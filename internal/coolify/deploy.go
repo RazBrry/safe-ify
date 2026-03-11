@@ -63,13 +63,13 @@ func (c *Client) Restart(ctx context.Context, uuid string) error {
 	return nil
 }
 
-// ListDeployments calls GET /api/v1/applications/{uuid}/deployments and returns
+// ListDeployments calls GET /api/v1/deployments/applications/{uuid} and returns
 // the deployment history for the application.
 func (c *Client) ListDeployments(ctx context.Context, uuid string) ([]Deployment, error) {
 	if err := validateUUID(uuid); err != nil {
 		return nil, err
 	}
-	resp, err := c.doRequest(ctx, "GET", "/api/v1/applications/"+uuid+"/deployments", nil)
+	resp, err := c.doRequest(ctx, "GET", "/api/v1/deployments/applications/"+uuid, nil)
 	if err != nil {
 		return nil, err
 	}

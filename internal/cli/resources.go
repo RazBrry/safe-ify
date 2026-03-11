@@ -11,8 +11,8 @@ import (
 
 var resourcesCmd = &cobra.Command{
 	Use:   "resources",
-	Short: "Show application resource usage",
-	Long:  "Display CPU, memory, network, and disk I/O metrics for the application's containers.",
+	Short: "Show application resource limits",
+	Long:  "Display the configured resource limits (CPU, memory) for the application.",
 	RunE:  runResources,
 }
 
@@ -34,7 +34,7 @@ func runResources(cmd *cobra.Command, args []string) error {
 			return nil, errExitCode1
 		}
 
-		resources, err := client.GetResources(context.Background(), cfg.AppUUID)
+		app, err := client.GetApplication(context.Background(), cfg.AppUUID)
 		if err != nil {
 			if useJSON {
 				OutputError(cmd.OutOrStdout(), mapCoolifyError(err), err.Error())
@@ -44,40 +44,49 @@ func runResources(cmd *cobra.Command, args []string) error {
 			return nil, errExitCode1
 		}
 
+		type resourcesData struct {
+			UUID              string `json:"uuid"`
+			Name              string `json:"name"`
+			Status            string `json:"status"`
+			LimitsMemory      string `json:"limits_memory,omitempty"`
+			LimitsCPUs        string `json:"limits_cpus,omitempty"`
+			LimitsCPUShares   int    `json:"limits_cpu_shares,omitempty"`
+			LimitsMemorySwap  string `json:"limits_memory_swap,omitempty"`
+			LimitsMemoryReserv string `json:"limits_memory_reservation,omitempty"`
+		}
+		data := resourcesData{
+			UUID:              app.UUID,
+			Name:              app.Name,
+			Status:            app.Status,
+			LimitsMemory:      app.LimitsMemory,
+			LimitsCPUs:        app.LimitsCPUs,
+			LimitsCPUShares:   app.LimitsCPUShares,
+			LimitsMemorySwap:  app.LimitsMemorySwap,
+			LimitsMemoryReserv: app.LimitsMemoryReserv,
+		}
+
 		if useJSON {
-			OutputJSON(cmd.OutOrStdout(), Response{OK: true, Data: resources})
+			OutputJSON(cmd.OutOrStdout(), Response{OK: true, Data: data})
 		} else {
-			if len(resources) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No resource data available.")
-				return resources, nil
+			fmt.Fprintf(cmd.OutOrStdout(), "Application: %s (%s)\n", app.Name, app.UUID)
+			fmt.Fprintf(cmd.OutOrStdout(), "Status:      %s\n", app.Status)
+			if app.LimitsCPUs != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "CPU limit:   %s\n", app.LimitsCPUs)
 			}
-			for _, r := range resources {
-				if r.ContainerID != "" {
-					id := r.ContainerID
-					if len(id) > 12 {
-						id = id[:12]
-					}
-					fmt.Fprintf(cmd.OutOrStdout(), "Container: %s\n", id)
-				}
-				if r.CPUPercent != "" {
-					fmt.Fprintf(cmd.OutOrStdout(), "  CPU:    %s\n", r.CPUPercent)
-				}
-				if r.MemUsage != "" && r.MemLimit != "" {
-					fmt.Fprintf(cmd.OutOrStdout(), "  Memory: %s / %s", r.MemUsage, r.MemLimit)
-					if r.MemPercent != "" {
-						fmt.Fprintf(cmd.OutOrStdout(), " (%s)", r.MemPercent)
-					}
-					fmt.Fprintln(cmd.OutOrStdout())
-				}
-				if r.NetIO != "" {
-					fmt.Fprintf(cmd.OutOrStdout(), "  Net:    %s\n", r.NetIO)
-				}
-				if r.BlockIO != "" {
-					fmt.Fprintf(cmd.OutOrStdout(), "  Disk:   %s\n", r.BlockIO)
-				}
+			if app.LimitsCPUShares > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "CPU shares:  %d\n", app.LimitsCPUShares)
+			}
+			if app.LimitsMemory != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "Memory:      %s\n", app.LimitsMemory)
+			}
+			if app.LimitsMemoryReserv != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "Memory resv: %s\n", app.LimitsMemoryReserv)
+			}
+			if app.LimitsMemorySwap != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "Memory swap: %s\n", app.LimitsMemorySwap)
 			}
 		}
-		return resources, nil
+		return data, nil
 	})
 
 	if err == errExitCode1 {

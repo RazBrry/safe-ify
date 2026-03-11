@@ -4,16 +4,21 @@ import "fmt"
 
 // Application represents a Coolify application resource.
 type Application struct {
-	UUID          string `json:"uuid"`
-	Name          string `json:"name"`
-	Description   string `json:"description"`
-	FQDN          string `json:"fqdn"`
-	Status        string `json:"status"`
-	BuildPack     string `json:"build_pack"`
-	GitRepository string `json:"git_repository"`
-	GitBranch     string `json:"git_branch"`
-	CreatedAt     string `json:"created_at"`
-	UpdatedAt     string `json:"updated_at"`
+	UUID               string `json:"uuid"`
+	Name               string `json:"name"`
+	Description        string `json:"description"`
+	FQDN               string `json:"fqdn"`
+	Status             string `json:"status"`
+	BuildPack          string `json:"build_pack"`
+	GitRepository      string `json:"git_repository"`
+	GitBranch          string `json:"git_branch"`
+	LimitsMemory       string `json:"limits_memory"`
+	LimitsCPUs         string `json:"limits_cpus"`
+	LimitsCPUShares    int    `json:"limits_cpu_shares"`
+	LimitsMemorySwap   string `json:"limits_memory_swap"`
+	LimitsMemoryReserv string `json:"limits_memory_reservation"`
+	CreatedAt          string `json:"created_at"`
+	UpdatedAt          string `json:"updated_at"`
 }
 
 // DeploymentEntry represents a single deployment entry in a deploy response.
@@ -38,16 +43,6 @@ type Deployment struct {
 	UpdatedAt      string `json:"updated_at"`
 }
 
-// Resource represents resource usage metrics for an application.
-type Resource struct {
-	ContainerID string `json:"container_id,omitempty"`
-	CPUPercent  string `json:"cpu_percent,omitempty"`
-	MemUsage    string `json:"mem_usage,omitempty"`
-	MemLimit    string `json:"mem_limit,omitempty"`
-	MemPercent  string `json:"mem_percent,omitempty"`
-	NetIO       string `json:"net_io,omitempty"`
-	BlockIO     string `json:"block_io,omitempty"`
-}
 
 // EnvVar represents a Coolify environment variable.
 type EnvVar struct {
