@@ -17,11 +17,13 @@ var validAppName = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$`
 // knownAgentCommands is the authoritative list of agent-facing commands.
 // Keep in sync with permissions.AllAgentCommands.
 var knownAgentCommands = map[string]bool{
-	"deploy":   true,
-	"redeploy": true,
-	"logs":     true,
-	"status":   true,
-	"list":     true,
+	"deploy":    true,
+	"redeploy":  true,
+	"logs":      true,
+	"status":    true,
+	"list":      true,
+	"env-read":  true,
+	"env-write": true,
 }
 
 // validateDenyList returns an error if any entry in deny is not a known agent command.

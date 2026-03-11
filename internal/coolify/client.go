@@ -65,6 +65,36 @@ func (c *Client) doRequest(ctx context.Context, method, path string, query url.V
 	return resp, nil
 }
 
+// doRequestWithBody is like doRequest but sends a JSON body with the request.
+func (c *Client) doRequestWithBody(ctx context.Context, method, path string, body io.Reader) (*http.Response, error) {
+	u, err := url.Parse(c.baseURL + path)
+	if err != nil {
+		return nil, fmt.Errorf("invalid URL: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, u.String(), body)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("User-Agent", "safe-ify/1.0")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, &NetworkError{Cause: err}
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		defer resp.Body.Close()
+		return nil, c.handleError(resp)
+	}
+
+	return resp, nil
+}
+
 // handleError reads the response body and maps HTTP status codes to
 // user-friendly CoolifyError messages.
 func (c *Client) handleError(resp *http.Response) error {

@@ -36,6 +36,42 @@ type Deployment struct {
 	UpdatedAt      string `json:"updated_at"`
 }
 
+// EnvVar represents a Coolify environment variable.
+type EnvVar struct {
+	UUID        string `json:"uuid"`
+	Key         string `json:"key"`
+	Value       string `json:"value,omitempty"`
+	RealValue   string `json:"real_value,omitempty"`
+	Comment     string `json:"comment"`
+	IsPreview   bool   `json:"is_preview"`
+	IsMultiline bool   `json:"is_multiline"`
+	IsLiteral   bool   `json:"is_literal"`
+	IsRuntime   bool   `json:"is_runtime"`
+	IsBuildtime bool   `json:"is_buildtime"`
+	IsShownOnce bool   `json:"is_shown_once"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
+
+// CreateEnvRequest is the body for POST /applications/{uuid}/envs.
+type CreateEnvRequest struct {
+	Key         string `json:"key"`
+	Value       string `json:"value"`
+	IsPreview   *bool  `json:"is_preview,omitempty"`
+	IsRuntime   *bool  `json:"is_runtime,omitempty"`
+	IsBuildtime *bool  `json:"is_buildtime,omitempty"`
+}
+
+// UpdateEnvRequest is the body for PATCH /applications/{uuid}/envs.
+// Coolify looks up the env var by key (not by UUID in path).
+type UpdateEnvRequest struct {
+	Key         string `json:"key"`
+	Value       string `json:"value"`
+	IsPreview   *bool  `json:"is_preview,omitempty"`
+	IsRuntime   *bool  `json:"is_runtime,omitempty"`
+	IsBuildtime *bool  `json:"is_buildtime,omitempty"`
+}
+
 // LogsResponse holds log lines returned by the logs API.
 type LogsResponse struct {
 	Lines []string

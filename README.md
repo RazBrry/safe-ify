@@ -56,6 +56,10 @@ safe-ify init
 | `safe-ify logs --app api --json --tail 50` | Fetch recent logs (default: 100 lines) |
 | `safe-ify status --app api --json` | Check deployment status |
 | `safe-ify list --json` | List available applications (no `--app` needed) |
+| `safe-ify env list --app api --json` | List env var keys (add `--show-values` for values) |
+| `safe-ify env get --app api --key DB_HOST --json` | Get a specific env var value |
+| `safe-ify env set --app api --key DB_HOST --value localhost --json` | Create or update an env var |
+| `safe-ify env delete --app api --key OLD_VAR --json` | Delete an env var |
 
 > ¹ `redeploy` uses the Coolify `/restart` endpoint, which may return 403 on some Coolify versions even with the correct token scopes. If you hit this, use `deploy --force` instead.
 
@@ -69,8 +73,8 @@ Create a Coolify API token at **Settings → API Tokens** with these scopes:
 |-------|-------------|
 | `read` | status, logs, list, deployment polling |
 | `deploy` | deploy, redeploy |
-| `read:sensitive` | reading environment variables (planned) |
-| `write` | modifying environment variables (planned) |
+| `read:sensitive` | reading environment variable values (`env list --show-values`, `env get`) |
+| `write` | modifying environment variables (`env set`, `env delete`) |
 
 Minimum for current features: **`read` + `deploy`**.
 
@@ -86,7 +90,7 @@ apps:
   web:
     app_uuid: "def456-..."
     permissions:
-      deny: [deploy]  # web app can't be deployed by agents
+      deny: [deploy, env-write]  # web app: no deploys, no env changes
 ```
 
 Legacy single-app configs (`app_uuid` at root level) are auto-detected and work without changes.
@@ -95,7 +99,7 @@ Legacy single-app configs (`app_uuid` at root level) are auto-detected and work 
 
 safe-ify enforces a strict separation between human and agent capabilities:
 
-- **Agents can only** run the five allowlisted commands (`deploy`, `redeploy`, `logs`, `status`, `list`) within the permissions granted by the config.
+- **Agents can only** run the allowlisted commands (`deploy`, `redeploy`, `logs`, `status`, `list`, `env list/get/set/delete`) within the permissions granted by the config.
 - **Agents cannot** modify configuration — `init`, `auth add`, and `auth remove` require an interactive terminal (TTY check) and will refuse to run when called from a non-interactive shell.
 - **Permissions are deny-only** — each layer (global, project, per-app) can only restrict further, never grant back a denied command.
 - **Tokens are never exposed** — not in CLI output, not in JSON responses, not in audit logs.

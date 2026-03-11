@@ -32,6 +32,7 @@ internal/
     logs.go              # Agent command: logs
     status.go            # Agent command: status
     list.go              # Agent command: list
+    env.go               # Agent commands: env list/get/set/delete
     doctor.go            # Doctor command
     output.go            # JSON envelope formatting
   config/
@@ -104,6 +105,10 @@ go install ./cmd/safe-ify
 | `safe-ify logs --json --tail N` | Fetch recent logs (default: 100 lines) |
 | `safe-ify status --json` | Check deployment status |
 | `safe-ify list --json` | List available applications |
+| `safe-ify env list --json` | List env var keys |
+| `safe-ify env get --key X --json` | Get env var value |
+| `safe-ify env set --key X --value Y --json` | Set env var |
+| `safe-ify env delete --key X --json` | Delete env var |
 | `safe-ify doctor` | Validate setup, output CLAUDE.md snippet |
 
 ## Planning Workflow
