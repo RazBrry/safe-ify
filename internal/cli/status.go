@@ -23,7 +23,7 @@ func init() {
 func runStatus(cmd *cobra.Command, args []string) error {
 	useJSON, _ := cmd.Root().PersistentFlags().GetBool("json")
 
-	err := runAgentCommand(cmd, "status", func(cfg *config.RuntimeConfig, client *coolify.Client) (interface{}, error) {
+	err := runAgentCommand(cmd, "status", true, func(cfg *config.RuntimeConfig, client *coolify.Client) (interface{}, error) {
 		if !cfg.AllowedCmds["status"] {
 			err := fmt.Errorf("command %q is not permitted for this project", "status")
 			if useJSON {

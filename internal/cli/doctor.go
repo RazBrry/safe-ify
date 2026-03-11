@@ -246,6 +246,8 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	fmt.Fprintf(stdout, "Instance: %s (%s)\n", projectCfg.Instance, instanceURL)
 	fmt.Fprintln(stdout, "")
 
+	multiApp := len(projectCfg.Apps) > 1
+
 	for appKey, appCfg := range projectCfg.Apps {
 		resolvedName := appNames[appKey]
 		fmt.Fprintf(stdout, "Application: %s — %s (%s)\n", appKey, resolvedName, appCfg.UUID)
@@ -262,7 +264,17 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 			if enforcer.Check(cd.name) != nil {
 				status = "Denied"
 			}
-			fmt.Fprintf(stdout, "| %s | %s |\n", cd.display, status)
+			display := cd.display
+			if multiApp {
+				// Insert --app <name> flag into the command display string.
+				// Replace e.g. "`safe-ify deploy --json`" with "`safe-ify deploy --app <name> --json`"
+				// by inserting before " --json" or at end before the closing backtick.
+				appFlag := " --app " + appKey
+				if idx := len(display) - 1; display[idx] == '`' {
+					display = display[:idx] + appFlag + "`"
+				}
+			}
+			fmt.Fprintf(stdout, "| %s | %s |\n", display, status)
 		}
 		fmt.Fprintln(stdout, "")
 	}

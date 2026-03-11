@@ -25,7 +25,7 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	useJSON, _ := cmd.Root().PersistentFlags().GetBool("json")
 	force, _ := cmd.Flags().GetBool("force")
 
-	err := runAgentCommand(cmd, "deploy", func(cfg *config.RuntimeConfig, client *coolify.Client) (interface{}, error) {
+	err := runAgentCommand(cmd, "deploy", true, func(cfg *config.RuntimeConfig, client *coolify.Client) (interface{}, error) {
 		if !cfg.AllowedCmds["deploy"] {
 			err := fmt.Errorf("command %q is not permitted for this project", "deploy")
 			if useJSON {

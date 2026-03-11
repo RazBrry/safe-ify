@@ -26,6 +26,8 @@ const (
 	ErrCodeAPIError          = "API_ERROR"
 	ErrCodeNetworkError      = "NETWORK_ERROR"
 	ErrCodeConfigInsecure    = "CONFIG_INSECURE"
+	ErrCodeAppNotFound       = "APP_NOT_FOUND"
+	ErrCodeAppAmbiguous      = "APP_AMBIGUOUS"
 )
 
 // OutputJSON marshals resp as indented JSON and writes it to w.

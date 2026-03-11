@@ -12,12 +12,13 @@ import (
 )
 
 // TestEntry_String verifies that Entry.String() produces the expected
-// pipe-delimited format: YYYY-MM-DDTHH:MM:SSZ | command | app_uuid | instance | result | duration_ms
+// pipe-delimited format: YYYY-MM-DDTHH:MM:SSZ | command | app_name | app_uuid | instance | result | duration_ms
 func TestEntry_String(t *testing.T) {
 	ts := time.Date(2026, 3, 11, 14, 5, 30, 0, time.UTC)
 	e := Entry{
 		Timestamp:  ts,
 		Command:    "deploy",
+		AppName:    "my-app",
 		AppUUID:    "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
 		Instance:   "my-coolify",
 		Result:     "ok",
@@ -25,15 +26,15 @@ func TestEntry_String(t *testing.T) {
 	}
 
 	got := e.String()
-	want := "2026-03-11T14:05:30Z | deploy | a1b2c3d4-e5f6-7890-abcd-ef1234567890 | my-coolify | ok | 123"
+	want := "2026-03-11T14:05:30Z | deploy | my-app | a1b2c3d4-e5f6-7890-abcd-ef1234567890 | my-coolify | ok | 123"
 	if got != want {
 		t.Errorf("Entry.String() mismatch\n  got:  %q\n  want: %q", got, want)
 	}
 
 	// Verify the parts individually.
 	parts := strings.Split(got, " | ")
-	if len(parts) != 6 {
-		t.Fatalf("expected 6 pipe-delimited fields, got %d", len(parts))
+	if len(parts) != 7 {
+		t.Fatalf("expected 7 pipe-delimited fields, got %d", len(parts))
 	}
 	if parts[0] != "2026-03-11T14:05:30Z" {
 		t.Errorf("timestamp field: got %q, want %q", parts[0], "2026-03-11T14:05:30Z")
@@ -41,17 +42,20 @@ func TestEntry_String(t *testing.T) {
 	if parts[1] != "deploy" {
 		t.Errorf("command field: got %q, want %q", parts[1], "deploy")
 	}
-	if parts[2] != "a1b2c3d4-e5f6-7890-abcd-ef1234567890" {
-		t.Errorf("app_uuid field: got %q", parts[2])
+	if parts[2] != "my-app" {
+		t.Errorf("app_name field: got %q", parts[2])
 	}
-	if parts[3] != "my-coolify" {
-		t.Errorf("instance field: got %q", parts[3])
+	if parts[3] != "a1b2c3d4-e5f6-7890-abcd-ef1234567890" {
+		t.Errorf("app_uuid field: got %q", parts[3])
 	}
-	if parts[4] != "ok" {
-		t.Errorf("result field: got %q", parts[4])
+	if parts[4] != "my-coolify" {
+		t.Errorf("instance field: got %q", parts[4])
 	}
-	if parts[5] != "123" {
-		t.Errorf("duration_ms field: got %q", parts[5])
+	if parts[5] != "ok" {
+		t.Errorf("result field: got %q", parts[5])
+	}
+	if parts[6] != "123" {
+		t.Errorf("duration_ms field: got %q", parts[6])
 	}
 }
 
@@ -103,7 +107,7 @@ func TestLogger_WritesEntry(t *testing.T) {
 	}
 
 	content := string(data)
-	expectedLine := "2026-03-11T09:00:00Z | status | app-uuid-1 | test-instance | ok | 42"
+	expectedLine := "2026-03-11T09:00:00Z | status |  | app-uuid-1 | test-instance | ok | 42"
 	if !strings.Contains(content, expectedLine) {
 		t.Errorf("log file does not contain expected line\n  want: %q\n  got:  %q", expectedLine, content)
 	}
@@ -136,8 +140,8 @@ func TestLogger_AppendsToExisting(t *testing.T) {
 
 	content := string(data)
 
-	line1 := "2026-03-11T09:00:00Z | deploy | uuid-1 | inst | ok | 10"
-	line2 := "2026-03-11T09:01:00Z | status | uuid-2 | inst | error | 20"
+	line1 := "2026-03-11T09:00:00Z | deploy |  | uuid-1 | inst | ok | 10"
+	line2 := "2026-03-11T09:01:00Z | status |  | uuid-2 | inst | error | 20"
 
 	if !strings.Contains(content, line1) {
 		t.Errorf("first entry missing from log\n  want line containing: %q\n  content: %q", line1, content)

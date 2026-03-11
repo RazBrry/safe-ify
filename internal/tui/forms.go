@@ -148,6 +148,40 @@ func InitSelectAppForm(apps []AppOption, selected *string) *huh.Form {
 	)
 }
 
+// appNameRE validates that an app config name starts with an alphanumeric character
+// and contains only alphanumeric characters and hyphens.
+var appNameRE = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-]*$`)
+
+// InitAppNameForm builds and returns a huh.Form that prompts the user for a
+// short config-level name for the selected Coolify application. The name must
+// be non-empty, match the pattern ^[a-zA-Z0-9][a-zA-Z0-9-]*$, and not already
+// be present in existingNames.
+func InitAppNameForm(defaultName string, existingNames []string, name *string) *huh.Form {
+	*name = defaultName
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("App name").
+				Description("A short name for this app in your config (alphanumeric + hyphens).").
+				Value(name).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("app name is required")
+					}
+					if !appNameRE.MatchString(s) {
+						return fmt.Errorf("app name must start with a letter or digit and contain only alphanumeric characters and hyphens")
+					}
+					for _, existing := range existingNames {
+						if s == existing {
+							return fmt.Errorf("app name %q is already used in this project", s)
+						}
+					}
+					return nil
+				}),
+		),
+	)
+}
+
 // InitPermissionsForm builds and returns a huh.Form with a multi-select of all
 // agent commands. Selected commands will be DENIED for this project.
 func InitPermissionsForm(allCommands []string, denied *[]string) *huh.Form {

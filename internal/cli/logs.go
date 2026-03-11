@@ -26,7 +26,7 @@ func runLogs(cmd *cobra.Command, args []string) error {
 	useJSON, _ := cmd.Root().PersistentFlags().GetBool("json")
 	tail, _ := cmd.Flags().GetInt("tail")
 
-	err := runAgentCommand(cmd, "logs", func(cfg *config.RuntimeConfig, client *coolify.Client) (interface{}, error) {
+	err := runAgentCommand(cmd, "logs", true, func(cfg *config.RuntimeConfig, client *coolify.Client) (interface{}, error) {
 		if !cfg.AllowedCmds["logs"] {
 			err := fmt.Errorf("command %q is not permitted for this project", "logs")
 			if useJSON {

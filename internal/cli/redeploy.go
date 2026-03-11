@@ -23,7 +23,7 @@ func init() {
 func runRedeploy(cmd *cobra.Command, args []string) error {
 	useJSON, _ := cmd.Root().PersistentFlags().GetBool("json")
 
-	err := runAgentCommand(cmd, "redeploy", func(cfg *config.RuntimeConfig, client *coolify.Client) (interface{}, error) {
+	err := runAgentCommand(cmd, "redeploy", true, func(cfg *config.RuntimeConfig, client *coolify.Client) (interface{}, error) {
 		if !cfg.AllowedCmds["redeploy"] {
 			err := fmt.Errorf("command %q is not permitted for this project", "redeploy")
 			if useJSON {

@@ -12,6 +12,7 @@ var (
 	configPath  string
 	projectPath string
 	appVersion  string
+	appName     string
 )
 
 var rootCmd = &cobra.Command{
@@ -37,6 +38,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&jsonOutput, "json", false, "Output results as JSON")
 	rootCmd.PersistentFlags().StringVar(&configPath, "config", "", "Path to global config file (default: ~/.config/safe-ify/config.yaml)")
 	rootCmd.PersistentFlags().StringVar(&projectPath, "project", "", "Path to project config file (default: auto-discover .safe-ify.yaml)")
+	rootCmd.PersistentFlags().StringVar(&appName, "app", "", "Target app name (required when multiple apps configured)")
 	rootCmd.PersistentFlags().Bool("version", false, "Print version and exit")
 
 	rootCmd.RunE = func(cmd *cobra.Command, args []string) error {
