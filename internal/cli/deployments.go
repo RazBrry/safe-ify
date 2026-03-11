@@ -54,8 +54,9 @@ func runDeployments(cmd *cobra.Command, args []string) error {
 		type deploymentItem struct {
 			DeploymentUUID string `json:"deployment_uuid"`
 			Status         string `json:"status"`
-			CommitSHA      string `json:"commit_sha,omitempty"`
+			Commit         string `json:"commit,omitempty"`
 			CommitMessage  string `json:"commit_message,omitempty"`
+			Rollback       bool   `json:"rollback,omitempty"`
 			CreatedAt      string `json:"created_at"`
 		}
 		items := make([]deploymentItem, len(deployments))
@@ -63,8 +64,9 @@ func runDeployments(cmd *cobra.Command, args []string) error {
 			items[i] = deploymentItem{
 				DeploymentUUID: d.DeploymentUUID,
 				Status:         d.Status,
-				CommitSHA:      d.CommitSHA,
+				Commit:         d.Commit,
 				CommitMessage:  d.CommitMessage,
+				Rollback:       d.Rollback,
 				CreatedAt:      d.CreatedAt,
 			}
 		}
@@ -78,8 +80,8 @@ func runDeployments(cmd *cobra.Command, args []string) error {
 			}
 			for _, item := range items {
 				fmt.Fprintf(cmd.OutOrStdout(), "%s  %s  %s", item.CreatedAt, item.Status, item.DeploymentUUID)
-				if item.CommitSHA != "" {
-					sha := item.CommitSHA
+				if item.Commit != "" {
+					sha := item.Commit
 					if len(sha) > 7 {
 						sha = sha[:7]
 					}
@@ -87,6 +89,9 @@ func runDeployments(cmd *cobra.Command, args []string) error {
 				}
 				if item.CommitMessage != "" {
 					fmt.Fprintf(cmd.OutOrStdout(), "  %s", item.CommitMessage)
+				}
+				if item.Rollback {
+					fmt.Fprintf(cmd.OutOrStdout(), "  [rollback]")
 				}
 				fmt.Fprintln(cmd.OutOrStdout())
 			}

@@ -35,12 +35,19 @@ type DeployResponse struct {
 
 // Deployment represents a single deployment with its status.
 type Deployment struct {
-	DeploymentUUID string `json:"deployment_uuid"`
-	Status         string `json:"status"`
-	CommitSHA      string `json:"commit_sha,omitempty"`
-	CommitMessage  string `json:"commit_message,omitempty"`
-	CreatedAt      string `json:"created_at"`
-	UpdatedAt      string `json:"updated_at"`
+	ID              int    `json:"id,omitempty"`
+	ApplicationID   string `json:"application_id,omitempty"`
+	DeploymentUUID  string `json:"deployment_uuid"`
+	Status          string `json:"status"`
+	Commit          string `json:"commit,omitempty"`
+	CommitMessage   string `json:"commit_message,omitempty"`
+	ApplicationName string `json:"application_name,omitempty"`
+	IsWebhook       bool   `json:"is_webhook,omitempty"`
+	IsAPI           bool   `json:"is_api,omitempty"`
+	Rollback        bool   `json:"rollback,omitempty"`
+	RestartOnly     bool   `json:"restart_only,omitempty"`
+	CreatedAt       string `json:"created_at"`
+	UpdatedAt       string `json:"updated_at"`
 }
 
 

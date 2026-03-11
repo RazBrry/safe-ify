@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
 )
 
@@ -64,7 +65,8 @@ func (c *Client) Restart(ctx context.Context, uuid string) error {
 }
 
 // ListDeployments calls GET /api/v1/deployments/applications/{uuid} and returns
-// the deployment history for the application.
+// the deployment history for the application. The response may be a JSON array
+// or a paginated object with a "data" field — both forms are handled.
 func (c *Client) ListDeployments(ctx context.Context, uuid string) ([]Deployment, error) {
 	if err := validateUUID(uuid); err != nil {
 		return nil, err
@@ -75,11 +77,26 @@ func (c *Client) ListDeployments(ctx context.Context, uuid string) ([]Deployment
 	}
 	defer resp.Body.Close()
 
-	var deployments []Deployment
-	if err := json.NewDecoder(resp.Body).Decode(&deployments); err != nil {
-		return nil, fmt.Errorf("decoding deployments response: %w", err)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("reading deployments response: %w", err)
 	}
-	return deployments, nil
+
+	// Try decoding as a plain array first.
+	var deployments []Deployment
+	if err := json.Unmarshal(body, &deployments); err == nil {
+		return deployments, nil
+	}
+
+	// Try decoding as a paginated object with a "data" field.
+	var paginated struct {
+		Data []Deployment `json:"data"`
+	}
+	if err := json.Unmarshal(body, &paginated); err == nil && paginated.Data != nil {
+		return paginated.Data, nil
+	}
+
+	return nil, fmt.Errorf("decoding deployments response: unexpected format")
 }
 
 // DeployByTag triggers a deployment of a specific tag/commit via
