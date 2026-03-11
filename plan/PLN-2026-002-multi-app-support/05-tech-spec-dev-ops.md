@@ -51,6 +51,13 @@ These tests use Cobra's test mode (command execution in-process with captured ou
 
 All existing tests must continue to pass. The legacy format normalization ensures backward compatibility at the config layer. Existing CLI tests use the legacy format and will exercise the normalization path.
 
+### Coverage Targets
+
+- **Minimum requirement:** Every new public function and method must have at least one unit test.
+- **Named tests:** All tests listed in the Unit Tests and Integration Tests tables above are required. The total is 19 new test functions (12 config, 2 permissions, 2 audit, 5 CLI integration).
+- **Branch coverage:** Each error path (AppNotFoundError, AppAmbiguousError, both-format rejection, empty apps, invalid name, missing UUID) must have a dedicated test case.
+- **Regression:** `go test ./...` must pass with 0 failures. No existing test may be removed or weakened.
+
 ## Deployment
 
 No infrastructure changes. This is a CLI tool distributed as a binary. Users update by rebuilding (`make build`) or `go install`.
@@ -58,6 +65,28 @@ No infrastructure changes. This is a CLI tool distributed as a binary. Users upd
 ## Migration
 
 No explicit migration step. The old config format is auto-detected and works as-is (D2). If a user runs `safe-ify init` on an existing legacy config and adds an app, the config is saved in the new format.
+
+## Monitoring & Observability
+
+### Audit log format change (D4)
+
+The audit log gains a new `AppName` field, changing the pipe-delimited format from:
+
+```
+timestamp | command | app_uuid | instance | result | duration_ms
+```
+
+to:
+
+```
+timestamp | command | app_name | app_uuid | instance | result | duration_ms
+```
+
+**Implications:**
+- The audit log is append-only and human-read. There are no programmatic parsers to break.
+- Existing log entries (written before this change) will not have the `app_name` field. Any future tooling that parses the audit log must handle both formats (6-field and 7-field lines).
+- No alerting or monitoring infrastructure exists for this CLI tool. The audit log itself is the observability mechanism.
+- No action required beyond documenting the format change. Users reading old log entries will see the previous format; new entries will include the app name.
 
 ## Definition of Ready (Slice)
 

@@ -14,6 +14,8 @@ Owner: Planner
 | D4 | Audit log gains AppName field between command and app_uuid |
 | D5 | Config with both `app_uuid` and `apps` is rejected as invalid |
 | D6 | `list` command bypasses `--app` requirement (does not target a specific app) |
+| D7 | S2 consolidated into single implementer task for clean I->R->T chain |
+| D8 | Legacy normalization uses empty app deny list (not project deny copy) |
 
 ## Deliverable -> Files Map
 
@@ -21,17 +23,14 @@ Owner: Planner
 |-------------|------|-------|-----------------|
 | D1: Config types + loading + runtime | Implementer | Sonnet | 03-tech-spec-dev-architecture.md, 04-tech-spec-dev-config-migration.md |
 | D2: Permissions enforcer update | Implementer | Sonnet | 03-tech-spec-dev-architecture.md |
-| D3: CLI --app flag + agent.go | Implementer | Sonnet | 04-tech-spec-dev-cli-commands.md |
-| D4: Init command update | Implementer | Sonnet | 04-tech-spec-dev-cli-commands.md |
-| D5: Doctor command update | Implementer | Sonnet | 04-tech-spec-dev-cli-commands.md |
-| D6: Audit entry update | Implementer | Sonnet | 04-tech-spec-dev-cli-commands.md |
+| D3: CLI layer (--app flag, agent.go, init, doctor, audit) | Implementer | Sonnet | 04-tech-spec-dev-cli-commands.md, 03-tech-spec-dev-architecture.md |
 
 ## Slice gates (requires user approval -- each slice reviewed + merged independently)
 
 | Slice | Gate task | Increment |
 |-------|-----------|-----------|
 | S1 | T5 | Config layer: multi-app types, loading, backward compat, runtime resolution, permission enforcement |
-| S2 | T12 | CLI layer: --app flag, init add-app, doctor multi-app, audit app name |
+| S2 | T10 | CLI layer: --app flag, init add-app, doctor multi-app, audit app name |
 
 ## Out of scope
 

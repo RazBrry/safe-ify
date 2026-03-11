@@ -69,3 +69,25 @@
 
 **Decision:** Option 2. `resolveAgentConfig` accepts an `appRequired` parameter. `list` passes `false`.
 **Consequences:** `resolveAgentConfig` signature changes. Minor refactor in `agent.go`.
+
+### D7: S2 consolidated into single implementer task
+
+**Date:** 2026-03-11
+**Context:** Plan review (Codex) found that S2 had three implementer tasks (T6, T7, T8) sharing one reviewer and one tester, violating the Implementer -> Reviewer -> Tester chain requirement per plan-process.md section 2b rule 3.
+**Options considered:**
+1. Give each implementer task its own reviewer and tester -- results in 9 tasks for 3 small deliverables, excessive overhead
+2. Consolidate the three implementer tasks into one -- the CLI layer changes are tightly coupled (T7/T8 depend on agent.go changes from T6) and belong to the same package set
+
+**Decision:** Option 2. Consolidate old T6 (--app flag + agent.go + audit), T7 (init), and T8 (doctor) into a single T6 task. This gives S2 a clean T6 (Implementer) -> T7 (Reviewer) -> T8 (Tester) -> T9 (Full suite tester) -> T10 (Gate) sequence.
+**Consequences:** S2 has fewer, larger tasks. The single implementer task is comprehensive but all changes are in the same layer (internal/cli + internal/tui + internal/audit). Task file numbering from T6-T10 replaces the original T6-T12.
+
+### D8: Legacy normalization uses empty app deny list
+
+**Date:** 2026-03-11
+**Context:** Plan review found T1 instruction step 3 contradicted 04-tech-spec-dev-config-migration.md. T1 normalized legacy config by copying `cfg.Permissions` (project-level deny) into the app entry, but the spec states the app gets an empty deny list.
+**Options considered:**
+1. Copy project deny into app deny -- double-applies the project deny during ResolveRuntime (once as project, once as app)
+2. Use empty deny list for the app entry -- correct, since project-level deny is applied separately in ResolveRuntime
+
+**Decision:** Option 2. The normalized "default" app entry gets `Permissions: PermissionConfig{Deny: []string{}}`. The project-level `cfg.Permissions` stays at the project level and is merged separately during `ResolveRuntime`.
+**Consequences:** T1 instructions updated to match the spec exactly. No double-application of project deny list.
