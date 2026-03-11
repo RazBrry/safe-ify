@@ -135,11 +135,16 @@ func runDeploy(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// pollDeployment polls GetApplication until the status settles (no longer "deploying")
-// or the timeout is reached. Returns the final status.
+// pollDeployment polls GetApplication in two phases:
+//  1. Wait for the status to transition to a deploying state (building/deploying/etc).
+//     This handles the delay between triggering a deploy and Coolify starting the build.
+//  2. Wait for the status to settle (no longer deploying).
+//
+// Returns the final status or times out.
 func pollDeployment(cmd *cobra.Command, client *coolify.Client, uuid string, useJSON bool, timeoutSec, intervalSec int) (string, error) {
 	deadline := time.Now().Add(time.Duration(timeoutSec) * time.Second)
 	interval := time.Duration(intervalSec) * time.Second
+	sawDeploying := false
 
 	for {
 		time.Sleep(interval)
@@ -158,12 +163,20 @@ func pollDeployment(cmd *cobra.Command, client *coolify.Client, uuid string, use
 			fmt.Fprintf(cmd.OutOrStdout(), "  status: %s\n", app.Status)
 		}
 
-		if !isDeployingStatus(app.Status) {
+		if isDeployingStatus(app.Status) {
+			sawDeploying = true
+		}
+
+		// Only return when we've seen it enter deploying and then settle.
+		if sawDeploying && !isDeployingStatus(app.Status) {
 			return app.Status, nil
 		}
 
 		if time.Now().After(deadline) {
 			msg := fmt.Sprintf("timed out after %ds — last status: %s", timeoutSec, app.Status)
+			if !sawDeploying {
+				msg = fmt.Sprintf("timed out after %ds — deployment never started (status stayed %s)", timeoutSec, app.Status)
+			}
 			if useJSON {
 				OutputError(cmd.OutOrStdout(), "DEPLOY_TIMEOUT", msg)
 			} else {
