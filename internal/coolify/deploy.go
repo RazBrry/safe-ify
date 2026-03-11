@@ -88,12 +88,12 @@ func (c *Client) ListDeployments(ctx context.Context, uuid string) ([]Deployment
 		return deployments, nil
 	}
 
-	// Try decoding as a paginated object with a "data" field.
-	var paginated struct {
-		Data []Deployment `json:"data"`
+	// Try decoding as a wrapped object (e.g. {"deployments": [...], "count": N}).
+	var wrapped struct {
+		Deployments []Deployment `json:"deployments"`
 	}
-	if err := json.Unmarshal(body, &paginated); err == nil && paginated.Data != nil {
-		return paginated.Data, nil
+	if err := json.Unmarshal(body, &wrapped); err == nil && wrapped.Deployments != nil {
+		return wrapped.Deployments, nil
 	}
 
 	return nil, fmt.Errorf("decoding deployments response: unexpected format")
