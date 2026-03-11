@@ -21,4 +21,4 @@
 | T17 | S4 | Implement doctor command | Implementer | Sonnet | 04-cli-commands | internal/cli/doctor.go | AC1: validates setup; AC2: outputs valid CLAUDE.md markdown snippet; AC3: exit code 0 on success, 1 on failure | Done |
 | T18 | S4 | Review audit + doctor (S4 code) | Code Quality Reviewer | Opus | T16+T17 output, 03-arch, 04-cli-commands | verdict | AC: no blocking issues | Done |
 | T19 | S4 | Test audit + doctor (S4 tests) | Tester | Sonnet | T16+T17 output, 05-ops | internal/audit/*_test.go, internal/cli/doctor_test.go | AC: audit log tests pass, doctor output format tests pass | Done |
-| T20 | S4 | [GATE] Slice S4 approval | -- | -- | -- | -- | User says GO | In Progress |
+| T20 | S4 | [GATE] Slice S4 approval | -- | -- | -- | -- | User says GO | Done |
