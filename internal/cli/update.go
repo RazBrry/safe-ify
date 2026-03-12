@@ -48,6 +48,10 @@ type githubAsset struct {
 }
 
 func runUpdate(cmd *cobra.Command, args []string) error {
+	if err := requireTTY(); err != nil {
+		return err
+	}
+
 	fmt.Printf("  Current version: %s\n", appVersion)
 
 	// Check latest release from GitHub.
