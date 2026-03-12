@@ -96,8 +96,10 @@ apps:
   web:
     app_uuid: "def456-..."
     permissions:
-      deny: [deploy, env-write]  # web app: no deploys, no env changes
+      deny: [deploy, env-write, rollback, preview-deploy]  # web app: read-only
 ```
+
+`rollback` and `preview-deploy` are denied by default when adding new apps via `safe-ify init`. The human can opt in by deselecting them in the deny list picker.
 
 Legacy single-app configs (`app_uuid` at root level) are auto-detected and work without changes.
 
@@ -109,6 +111,20 @@ safe-ify enforces a strict separation between human and agent capabilities:
 - **Agents cannot** modify configuration or the binary — `init`, `auth add`, `auth remove`, and `update` require an interactive terminal (TTY check) and will refuse to run when called from a non-interactive shell.
 - **Permissions are deny-only** — each layer (global, project, per-app) can only restrict further, never grant back a denied command.
 - **Tokens are never exposed** — not in CLI output, not in JSON responses, not in audit logs.
+
+### Permission notes
+
+- **`env-read` means secret access.** If your Coolify token has the `read:sensitive` scope, an agent with `env-read` permission can read environment variable values (including secrets) via `env get` and `env list --show-values`. If your agent should not have access to secrets, deny `env-read`.
+- **`rollback` and `preview-deploy` are privileged.** Unlike `deploy` (which deploys the current branch), these commands let the agent choose *which* code to deploy. They are denied by default in new project configs.
+
+### Local security boundary
+
+The TTY check prevents *accidental* agent access to config-modifying commands, but it is not a hard security boundary. If the agent runs as the **same OS user** as safe-ify, it can read the global config file (including tokens) and modify the binary directly — file permissions do not protect against same-user access.
+
+For a real local secret boundary, run the agent as a **different OS user** and ensure:
+- `~/.config/safe-ify/config.yaml` is owned by the human user with `0600` permissions
+- The `safe-ify` binary is not writable by the agent user
+- The agent user can only invoke `safe-ify` as a command, not read its config files
 
 ## Tech stack
 

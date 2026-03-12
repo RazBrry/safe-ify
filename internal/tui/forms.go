@@ -190,17 +190,23 @@ func InitAppNameForm(defaultName string, existingNames []string, name *string) *
 
 // InitPermissionsForm builds and returns a huh.Form with a multi-select of all
 // agent commands. Selected commands will be DENIED for this project.
-func InitPermissionsForm(allCommands []string, denied *[]string) *huh.Form {
+// Commands in defaultDenied are pre-selected (the human can deselect to allow them).
+func InitPermissionsForm(allCommands []string, defaultDenied []string, denied *[]string) *huh.Form {
+	preSelected := make(map[string]bool, len(defaultDenied))
+	for _, cmd := range defaultDenied {
+		preSelected[cmd] = true
+	}
+
 	options := make([]huh.Option[string], len(allCommands))
 	for i, cmd := range allCommands {
-		options[i] = huh.NewOption(cmd, cmd)
+		options[i] = huh.NewOption(cmd, cmd).Selected(preSelected[cmd])
 	}
 
 	return huh.NewForm(
 		huh.NewGroup(
 			huh.NewMultiSelect[string]().
 				Title("Permission deny list").
-				Description("Select commands to DENY for this project. Leave empty to allow all commands.").
+				Description("Select commands to DENY for this app. Privileged commands (rollback, preview-deploy) are denied by default.").
 				Options(options...).
 				Value(denied),
 		),

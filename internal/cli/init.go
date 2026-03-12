@@ -299,7 +299,8 @@ func runInit(cmd *cobra.Command, args []string) error {
 		}
 
 		var denyList []string
-		if err := tui.InitPermissionsForm(config.AllAgentCommands, &denyList).Run(); err != nil {
+		defaultDenied := []string{"rollback", "preview-deploy"}
+		if err := tui.InitPermissionsForm(config.AllAgentCommands, defaultDenied, &denyList).Run(); err != nil {
 			if errors.Is(err, huh.ErrUserAborted) {
 				fmt.Println(tui.InfoStyle.Render("Aborted."))
 				return nil
