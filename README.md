@@ -13,7 +13,7 @@ A CLI safety layer for coding agents to interact with [Coolify](https://coolify.
 - **Machine-readable output** — all agent commands support `--json` with `{ok, data, error}` envelope
 - **Audit logging** — append-only log of all agent actions
 - **Zero credential leakage** — tokens never printed, never in JSON output, never in audit logs
-- **TTY-guarded config** — `init`, `auth add`, and `auth remove` require an interactive terminal, so agents cannot modify configuration
+- **TTY-guarded config** — `init`, `auth add`, `auth remove`, and `update` require an interactive terminal, so agents cannot modify configuration or the binary
 
 ## Quick start
 
@@ -63,7 +63,7 @@ safe-ify init
 | `safe-ify env delete --app api --key OLD_VAR --json` | Delete an env var |
 | `safe-ify deployments --app api --json` | List deployment history (default: last 10) |
 | `safe-ify domains --app api --json` | Show configured domains/URLs |
-| `safe-ify resources --app api --json` | Show CPU, memory, network, disk I/O |
+| `safe-ify resources --app api --json` | Show resource limits (CPU, memory) |
 | `safe-ify rollback --app api --to <sha> --json` | Rollback to a previous commit/tag |
 | `safe-ify preview-deploy --app api --branch <ref> --json` | Deploy a specific branch or tag |
 
@@ -106,7 +106,7 @@ Legacy single-app configs (`app_uuid` at root level) are auto-detected and work 
 safe-ify enforces a strict separation between human and agent capabilities:
 
 - **Agents can only** run the allowlisted commands (`deploy`, `redeploy`, `logs`, `status`, `list`, `env list/get/set/delete`, `deployments`, `domains`, `resources`, `rollback`, `preview-deploy`) within the permissions granted by the config.
-- **Agents cannot** modify configuration — `init`, `auth add`, and `auth remove` require an interactive terminal (TTY check) and will refuse to run when called from a non-interactive shell.
+- **Agents cannot** modify configuration or the binary — `init`, `auth add`, `auth remove`, and `update` require an interactive terminal (TTY check) and will refuse to run when called from a non-interactive shell.
 - **Permissions are deny-only** — each layer (global, project, per-app) can only restrict further, never grant back a denied command.
 - **Tokens are never exposed** — not in CLI output, not in JSON responses, not in audit logs.
 
