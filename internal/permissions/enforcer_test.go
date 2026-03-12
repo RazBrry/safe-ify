@@ -25,7 +25,7 @@ func makeProject(deny ...string) config.ProjectConfig {
 
 // allCommandsAllowed returns true if all 5 agent commands are allowed.
 func allCommandsAllowed(e *Enforcer) bool {
-	for _, cmd := range AllAgentCommands {
+	for _, cmd := range config.AllAgentCommands {
 		if e.Check(cmd) != nil {
 			return false
 		}
@@ -38,7 +38,7 @@ func allCommandsAllowed(e *Enforcer) bool {
 func TestResolvePermissions_NoRestrictions(t *testing.T) {
 	t.Parallel()
 	e := NewEnforcer(makeGlobal(), makeProject(), nil)
-	for _, cmd := range AllAgentCommands {
+	for _, cmd := range config.AllAgentCommands {
 		if err := e.Check(cmd); err != nil {
 			t.Errorf("expected %q to be allowed, got error: %v", cmd, err)
 		}
@@ -228,7 +228,7 @@ func TestEnforcer_AppDenyDoesNotEscalate(t *testing.T) {
 
 func TestValidateDenyList_ValidCommands(t *testing.T) {
 	t.Parallel()
-	if err := ValidateDenyList(AllAgentCommands); err != nil {
+	if err := ValidateDenyList(config.AllAgentCommands); err != nil {
 		t.Errorf("expected all 5 valid commands to pass validation, got: %v", err)
 	}
 }

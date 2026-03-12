@@ -16,11 +16,11 @@ type Enforcer struct {
 // Global denials are applied first; project denials can only further restrict;
 // app denials can only further restrict beyond project.
 func NewEnforcer(global config.GlobalConfig, project config.ProjectConfig, appDeny []string) *Enforcer {
-	allowed := make(map[string]bool, len(AllAgentCommands))
+	allowed := make(map[string]bool, len(config.AllAgentCommands))
 	deniedBy := make(map[string]string)
 
 	// Start with all commands allowed.
-	for _, cmd := range AllAgentCommands {
+	for _, cmd := range config.AllAgentCommands {
 		allowed[cmd] = true
 	}
 
@@ -71,7 +71,7 @@ func (e *Enforcer) Check(command string) error {
 // AllowedCommands returns the list of commands that are currently allowed.
 func (e *Enforcer) AllowedCommands() []string {
 	var result []string
-	for _, cmd := range AllAgentCommands {
+	for _, cmd := range config.AllAgentCommands {
 		if e.allowed[cmd] {
 			result = append(result, cmd)
 		}
@@ -82,7 +82,7 @@ func (e *Enforcer) AllowedCommands() []string {
 // DeniedCommands returns the list of commands that are currently denied.
 func (e *Enforcer) DeniedCommands() []string {
 	var result []string
-	for _, cmd := range AllAgentCommands {
+	for _, cmd := range config.AllAgentCommands {
 		if !e.allowed[cmd] {
 			result = append(result, cmd)
 		}
@@ -92,8 +92,8 @@ func (e *Enforcer) DeniedCommands() []string {
 
 // ValidateDenyList returns an error if any entry in deny is not a known agent command.
 func ValidateDenyList(deny []string) error {
-	valid := make(map[string]bool, len(AllAgentCommands))
-	for _, cmd := range AllAgentCommands {
+	valid := make(map[string]bool, len(config.AllAgentCommands))
+	for _, cmd := range config.AllAgentCommands {
 		valid[cmd] = true
 	}
 	for _, cmd := range deny {

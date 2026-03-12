@@ -2,23 +2,6 @@ package permissions
 
 import "fmt"
 
-// AllAgentCommands is the complete set of agent-facing commands that can be
-// controlled via permission deny lists.
-var AllAgentCommands = []string{
-	"deploy",
-	"redeploy",
-	"logs",
-	"status",
-	"list",
-	"env-read",
-	"env-write",
-	"deployments",
-	"domains",
-	"resources",
-	"rollback",
-	"preview-deploy",
-}
-
 // PermissionDeniedError is returned when a command is not permitted for a project.
 type PermissionDeniedError struct {
 	Command  string

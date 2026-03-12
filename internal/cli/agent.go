@@ -82,7 +82,7 @@ func resolveAgentConfig(cmd *cobra.Command, appRequired bool) (*config.RuntimeCo
 					Token:        inst.Token,
 					AppUUID:      "",
 					AppName:      "",
-					AllowedCmds:  map[string]bool{"deploy": true, "redeploy": true, "logs": true, "status": true, "list": true, "env-read": true, "env-write": true, "deployments": true, "domains": true, "resources": true, "rollback": true, "preview-deploy": true},
+					AllowedCmds:  allCommandsAllowed(),
 				}
 				err = nil
 			}
@@ -106,6 +106,15 @@ func resolveAgentConfig(cmd *cobra.Command, appRequired bool) (*config.RuntimeCo
 	client := coolify.NewClient(runtime.InstanceURL, runtime.Token)
 
 	return runtime, client, enforcer, nil
+}
+
+// allCommandsAllowed returns a map with all agent commands set to true.
+func allCommandsAllowed() map[string]bool {
+	m := make(map[string]bool, len(config.AllAgentCommands))
+	for _, cmd := range config.AllAgentCommands {
+		m[cmd] = true
+	}
+	return m
 }
 
 // mapConfigError maps a config-layer error to the appropriate JSON error code.

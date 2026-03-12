@@ -15,7 +15,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/RazBrry/safe-ify/internal/config"
-	"github.com/RazBrry/safe-ify/internal/permissions"
 	"github.com/RazBrry/safe-ify/internal/tui"
 )
 
@@ -300,7 +299,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 		}
 
 		var denyList []string
-		if err := tui.InitPermissionsForm(permissions.AllAgentCommands, &denyList).Run(); err != nil {
+		if err := tui.InitPermissionsForm(config.AllAgentCommands, &denyList).Run(); err != nil {
 			if errors.Is(err, huh.ErrUserAborted) {
 				fmt.Println(tui.InfoStyle.Render("Aborted."))
 				return nil

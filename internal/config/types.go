@@ -42,6 +42,24 @@ type ProjectConfig struct {
 	Permissions PermissionConfig     `yaml:"permissions"`
 }
 
+// AllAgentCommands is the single authoritative list of agent-facing commands
+// that can be controlled via permission deny lists. Referenced by permissions,
+// runtime resolution, project validation, and the CLI.
+var AllAgentCommands = []string{
+	"deploy",
+	"redeploy",
+	"logs",
+	"status",
+	"list",
+	"env-read",
+	"env-write",
+	"deployments",
+	"domains",
+	"resources",
+	"rollback",
+	"preview-deploy",
+}
+
 // RuntimeConfig is the resolved configuration for a single command invocation.
 // It is computed from the global config and project config.
 type RuntimeConfig struct {
