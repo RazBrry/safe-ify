@@ -52,6 +52,16 @@ func runList(cmd *cobra.Command, args []string) error {
 		projectPath = found
 	}
 
+	// Verify project config signature before trusting it.
+	if sigErr := verifyProjectSignature(cmd, projectPath); sigErr != nil {
+		if useJSON {
+			OutputError(cmd.OutOrStdout(), mapConfigError(sigErr), sigErr.Error())
+		} else {
+			fmt.Fprintf(cmd.ErrOrStderr(), "Error: %s\n", sigErr)
+		}
+		return errExitCode1
+	}
+
 	projectCfg, err := config.LoadProject(projectPath)
 	if err != nil {
 		if useJSON {

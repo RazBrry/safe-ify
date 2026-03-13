@@ -188,6 +188,58 @@ func InitAppNameForm(defaultName string, existingNames []string, name *string) *
 	)
 }
 
+// SetPassphraseForm builds a form that prompts the user to set a new passphrase
+// with confirmation. Returns the passphrase value via the pointer.
+func SetPassphraseForm(passphrase *string) *huh.Form {
+	var confirm string
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Set passphrase").
+				Description("This passphrase protects auth and init commands. You'll need it to add/remove instances or change project bindings.").
+				Password(true).
+				Value(passphrase).
+				Validate(func(s string) error {
+					if len(s) < 8 {
+						return fmt.Errorf("passphrase must be at least 8 characters")
+					}
+					return nil
+				}),
+
+			huh.NewInput().
+				Title("Confirm passphrase").
+				Password(true).
+				Value(&confirm).
+				Validate(func(s string) error {
+					if s != *passphrase {
+						return fmt.Errorf("passphrases do not match")
+					}
+					return nil
+				}),
+		),
+	)
+}
+
+// VerifyPassphraseForm builds a form that prompts the user to enter their
+// existing passphrase. Returns the entered value via the pointer.
+func VerifyPassphraseForm(passphrase *string) *huh.Form {
+	return huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().
+				Title("Passphrase").
+				Description("Enter your safe-ify passphrase to continue.").
+				Password(true).
+				Value(passphrase).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("passphrase is required")
+					}
+					return nil
+				}),
+		),
+	)
+}
+
 // InitPermissionsForm builds and returns a huh.Form with a multi-select of all
 // agent commands. Selected commands will be DENIED for this project.
 // Commands in defaultDenied are pre-selected (the human can deselect to allow them).

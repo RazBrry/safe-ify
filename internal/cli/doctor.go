@@ -185,6 +185,25 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// Check signature before loading.
+	if globalCfg.HasSigningKeys() {
+		pubKey, pkErr := globalCfg.Signing.ParsePublicKey()
+		if pkErr != nil {
+			fmt.Fprintf(stderr, "  [FAIL] Cannot load signing public key: %s\n", pkErr)
+			anyFail = true
+		} else {
+			sigErr := config.VerifyProjectSignature(projectPath, pubKey)
+			if sigErr != nil {
+				fmt.Fprintf(stderr, "  [FAIL] Signature: %s\n", sigErr)
+				anyFail = true
+			} else {
+				fmt.Fprintf(stderr, "  [PASS] Signature valid\n")
+			}
+		}
+	} else {
+		fmt.Fprintf(stderr, "  [INFO] No signing keys configured — signature not checked\n")
+	}
+
 	projectCfg, projLoadErr := config.LoadProject(projectPath)
 	if projLoadErr != nil {
 		fmt.Fprintf(stderr, "  [FAIL] Cannot load project config: %s\n", projLoadErr)

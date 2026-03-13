@@ -43,12 +43,7 @@ func resolveAgentConfig(cmd *cobra.Command, appRequired bool) (*config.RuntimeCo
 		projectPath = found
 	}
 
-	projectCfg, err := config.LoadProject(projectPath)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-
-	// 2. Load global config.
+	// 2. Load global config (needed for signature verification).
 	globalOverride, _ := cmd.Root().PersistentFlags().GetString("config")
 	var globalPath string
 	if globalOverride != "" {
@@ -65,7 +60,24 @@ func resolveAgentConfig(cmd *cobra.Command, appRequired bool) (*config.RuntimeCo
 		return nil, nil, nil, err
 	}
 
-	// 3. Read the --app flag and resolve runtime config.
+	// 3. Verify project config signature before parsing (fail closed).
+	if globalCfg.HasSigningKeys() {
+		pubKey, err := globalCfg.Signing.ParsePublicKey()
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("cannot load signing public key: %w", err)
+		}
+		if err := config.VerifyProjectSignature(projectPath, pubKey); err != nil {
+			return nil, nil, nil, err
+		}
+	}
+
+	// 4. Parse project config (signature already verified).
+	projectCfg, err := config.LoadProject(projectPath)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	// 5. Read the --app flag and resolve runtime config.
 	selectedApp, _ := cmd.Root().PersistentFlags().GetString("app")
 	runtime, err := config.ResolveRuntime(globalCfg, projectCfg, selectedApp)
 	if err != nil {
@@ -92,7 +104,7 @@ func resolveAgentConfig(cmd *cobra.Command, appRequired bool) (*config.RuntimeCo
 		}
 	}
 
-	// 4. Build permission enforcer from the canonical permissions package.
+	// 6. Build permission enforcer from the canonical permissions package.
 	// Pass the resolved app's deny list for three-layer enforcement.
 	var appDeny []string
 	if runtime.AppName != "" {
@@ -102,10 +114,43 @@ func resolveAgentConfig(cmd *cobra.Command, appRequired bool) (*config.RuntimeCo
 	}
 	enforcer := permissions.NewEnforcer(*globalCfg, *projectCfg, appDeny)
 
-	// 5. Create Coolify client.
+	// 7. Create Coolify client.
 	client := coolify.NewClient(runtime.InstanceURL, runtime.Token)
 
 	return runtime, client, enforcer, nil
+}
+
+// verifyProjectSignature loads the global config and verifies the Ed25519
+// signature of the project config. Returns nil if signing is not configured
+// or the signature is valid. This is used by commands that load project config
+// directly (outside resolveAgentConfig).
+func verifyProjectSignature(cmd *cobra.Command, projectPath string) error {
+	globalOverride, _ := cmd.Root().PersistentFlags().GetString("config")
+	var globalPath string
+	if globalOverride != "" {
+		globalPath = globalOverride
+	} else {
+		gp, err := config.DefaultGlobalConfigPath()
+		if err != nil {
+			return fmt.Errorf("cannot determine global config path: %w", err)
+		}
+		globalPath = gp
+	}
+
+	globalCfg, err := config.LoadGlobal(globalPath)
+	if err != nil {
+		return err
+	}
+
+	if !globalCfg.HasSigningKeys() {
+		return nil
+	}
+
+	pubKey, err := globalCfg.Signing.ParsePublicKey()
+	if err != nil {
+		return fmt.Errorf("cannot load signing public key: %w", err)
+	}
+	return config.VerifyProjectSignature(projectPath, pubKey)
 }
 
 // allCommandsAllowed returns a map with all agent commands set to true.
@@ -132,6 +177,10 @@ func mapConfigError(err error) string {
 		return ErrCodeAppNotFound
 	case *config.AppAmbiguousError:
 		return ErrCodeAppAmbiguous
+	case *config.SignatureMissingError:
+		return ErrCodeSignatureInvalid
+	case *config.SignatureInvalidError:
+		return ErrCodeSignatureInvalid
 	default:
 		return ErrCodeAPIError
 	}

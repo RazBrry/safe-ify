@@ -100,6 +100,70 @@ func validateToken(rawURL, token string) error {
 	return fmt.Errorf("could not validate token: neither /api/v1/version nor /api/v1/health responded (both returned 404)")
 }
 
+// requirePassphrase checks whether the global config has a passphrase set.
+// If it does, prompts the user to enter it and verifies it. Returns nil on
+// success, or an error if the passphrase is wrong or the user aborts.
+// If no passphrase is set, returns nil immediately.
+// The verified passphrase is stored in lastVerifiedPassphrase for signing key
+// decryption within the same command.
+func requirePassphrase(cfg *config.GlobalConfig) error {
+	if !cfg.HasPassphrase() {
+		return nil
+	}
+
+	var entered string
+	if err := tui.VerifyPassphraseForm(&entered).Run(); err != nil {
+		if errors.Is(err, huh.ErrUserAborted) {
+			fmt.Println(tui.InfoStyle.Render("Aborted."))
+			return fmt.Errorf("aborted")
+		}
+		return fmt.Errorf("passphrase form error: %w", err)
+	}
+
+	if err := config.VerifyPassphrase(cfg.PassphraseHash, entered); err != nil {
+		return err
+	}
+	lastVerifiedPassphrase = entered
+	return nil
+}
+
+// setupPassphrase prompts the user to set a passphrase on first use.
+// Stores the bcrypt hash and Ed25519 signing keypair in the global config.
+func setupPassphrase(cfg *config.GlobalConfig, cfgPath string) error {
+	var passphrase string
+	if err := tui.SetPassphraseForm(&passphrase).Run(); err != nil {
+		if errors.Is(err, huh.ErrUserAborted) {
+			fmt.Println(tui.InfoStyle.Render("Aborted."))
+			return fmt.Errorf("aborted")
+		}
+		return fmt.Errorf("passphrase form error: %w", err)
+	}
+
+	hash, err := config.HashPassphrase(passphrase)
+	if err != nil {
+		return err
+	}
+
+	signing, err := config.GenerateSigningKeys(passphrase)
+	if err != nil {
+		return err
+	}
+
+	cfg.PassphraseHash = hash
+	cfg.Signing = *signing
+	if err := config.SaveGlobal(cfgPath, cfg); err != nil {
+		return fmt.Errorf("cannot save global config: %w", err)
+	}
+
+	fmt.Println(tui.SuccessStyle.Render("Passphrase and signing keys set."))
+	return nil
+}
+
+// lastVerifiedPassphrase holds the passphrase entered during requirePassphrase
+// so it can be reused within the same command to decrypt the signing key.
+// Callers must clear it after use by assigning "".
+var lastVerifiedPassphrase string
+
 // maskToken returns the first 4 characters of the token followed by "****",
 // or "****" if the token is shorter than 4 characters.
 func maskToken(token string) string {
@@ -132,6 +196,27 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// Load or create global config.
+	cfg, err := loadOrCreateGlobal(cfgPath)
+	if err != nil {
+		return err
+	}
+
+	// Passphrase gate: if passphrase exists, verify it; if this is the first
+	// instance being added and no passphrase is set, prompt to create one.
+	defer func() { lastVerifiedPassphrase = "" }()
+	if cfg.HasPassphrase() {
+		if err := requirePassphrase(cfg); err != nil {
+			return err
+		}
+	} else if len(cfg.Instances) == 0 {
+		// First-time setup: prompt to set a passphrase.
+		fmt.Println(tui.InfoStyle.Render("First-time setup: set a passphrase to protect configuration commands."))
+		if err := setupPassphrase(cfg, cfgPath); err != nil {
+			return err
+		}
+	}
+
 	values := &tui.AuthAddValues{}
 
 	if err := tui.AuthAddForm(values).Run(); err != nil {
@@ -154,8 +239,8 @@ func runAuthAdd(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("token validation failed: %w", err)
 	}
 
-	// Load or create global config.
-	cfg, err := loadOrCreateGlobal(cfgPath)
+	// Reload config in case setupPassphrase saved it (avoids overwriting the hash).
+	cfg, err = loadOrCreateGlobal(cfgPath)
 	if err != nil {
 		return err
 	}
@@ -207,6 +292,8 @@ func newAuthRemoveCmd() *cobra.Command {
 }
 
 func runAuthRemove(cmd *cobra.Command, args []string) error {
+	defer func() { lastVerifiedPassphrase = "" }()
+
 	if err := requireTTY(); err != nil {
 		return err
 	}
@@ -229,6 +316,11 @@ func runAuthRemove(cmd *cobra.Command, args []string) error {
 	if len(cfg.Instances) == 0 {
 		fmt.Println(tui.InfoStyle.Render("No instances configured. Run `safe-ify auth add` to add one."))
 		return nil
+	}
+
+	// Passphrase gate.
+	if err := requirePassphrase(cfg); err != nil {
+		return err
 	}
 
 	// Collect instance names for the picker.

@@ -28,6 +28,7 @@ const (
 	ErrCodeConfigInsecure    = "CONFIG_INSECURE"
 	ErrCodeAppNotFound       = "APP_NOT_FOUND"
 	ErrCodeAppAmbiguous      = "APP_AMBIGUOUS"
+	ErrCodeSignatureInvalid  = "SIGNATURE_INVALID"
 )
 
 // OutputJSON marshals resp as indented JSON and writes it to w.

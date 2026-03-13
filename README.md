@@ -14,6 +14,7 @@ A CLI safety layer for coding agents to interact with [Coolify](https://coolify.
 - **Audit logging** — append-only log of all agent actions
 - **Zero credential leakage** — tokens never printed, never in JSON output, never in audit logs
 - **TTY-guarded config** — `init`, `auth add`, `auth remove`, and `update` require an interactive terminal, so agents cannot modify configuration or the binary
+- **Passphrase-protected** — authorization commands (`auth add`, `auth remove`, `init`) require a human-set passphrase
 
 ## Quick start
 
@@ -109,22 +110,72 @@ safe-ify enforces a strict separation between human and agent capabilities:
 
 - **Agents can only** run the allowlisted commands (`deploy`, `redeploy`, `logs`, `status`, `list`, `env list/get/set/delete`, `deployments`, `domains`, `resources`, `rollback`, `preview-deploy`) within the permissions granted by the config.
 - **Agents cannot** modify configuration or the binary — `init`, `auth add`, `auth remove`, and `update` require an interactive terminal (TTY check) and will refuse to run when called from a non-interactive shell.
+- **Passphrase-protected** — authorization commands (`auth add`, `auth remove`, `init`) require a passphrase set on first use. This protects credential management and project bindings.
 - **Permissions are deny-only** — each layer (global, project, per-app) can only restrict further, never grant back a denied command.
 - **Tokens are never exposed** — not in CLI output, not in JSON responses, not in audit logs.
+
+### Passphrase protection
+
+The first time you run `safe-ify auth add`, you'll be prompted to set a passphrase (minimum 8 characters). This passphrase is required for all subsequent authorization commands:
+
+| Protected command | Why |
+|---|---|
+| `auth add` | Adds or rotates Coolify credentials |
+| `auth remove` | Removes Coolify credentials |
+| `init` | Changes which instance/apps a project is bound to, modifies permission policy |
+
+The passphrase hash (bcrypt) is stored in `~/.config/safe-ify/config.yaml`. Agent commands (`deploy`, `status`, etc.) are **not** affected — they never require the passphrase.
+
+### Project config integrity (Ed25519 signing)
+
+The project config (`.safe-ify.yaml`) lives in the repo and is readable by agents — but agents cannot silently edit it and have safe-ify trust the change.
+
+**How it works:**
+
+1. On first setup, safe-ify generates an Ed25519 keypair. The private key is encrypted with your passphrase (Argon2id + AES-GCM) and stored in global config. The public key is stored in plaintext.
+2. When `init` saves `.safe-ify.yaml`, it also writes `.safe-ify.sig` — an Ed25519 signature of the exact file bytes.
+3. Every agent command verifies the signature against the public key **before parsing the YAML**. If the signature is missing or invalid, the command is rejected.
+
+This gives you:
+- **Agents can read** the config (to know which app to target)
+- **Agents cannot forge** a valid signature (they don't have the passphrase to unlock the private key)
+- **Tampering is detected** — any edit to `.safe-ify.yaml` without re-signing via `init` breaks the signature
+- **No password prompts** on agent commands — verification uses the public key only
+
+Both `.safe-ify.yaml` and `.safe-ify.sig` should be committed to version control.
 
 ### Permission notes
 
 - **`env-read` means secret access.** If your Coolify token has the `read:sensitive` scope, an agent with `env-read` permission can read environment variable values (including secrets) via `env get` and `env list --show-values`. If your agent should not have access to secrets, deny `env-read`.
 - **`rollback` and `preview-deploy` are privileged.** Unlike `deploy` (which deploys the current branch), these commands let the agent choose *which* code to deploy. They are denied by default in new project configs.
+- **`init` is an authorization change**, not a normal agent command. It controls which instance and apps a project talks to and sets permission policy — that's why it requires the passphrase.
 
-### Local security boundary
+### Threat model and security boundary
 
-The TTY check prevents *accidental* agent access to config-modifying commands, but it is not a hard security boundary. If the agent runs as the **same OS user** as safe-ify, it can read the global config file (including tokens) and modify the binary directly — file permissions do not protect against same-user access.
+safe-ify's security controls are designed for one specific scenario: **an agent that interacts with Coolify exclusively through the safe-ify CLI**. In that model, the protections are:
 
-For a real local secret boundary, run the agent as a **different OS user** and ensure:
+- **TTY check** — agents cannot run authorization commands (`auth add`, `auth remove`, `init`, `update`)
+- **Passphrase** — even at an interactive terminal, authorization commands require a human-set passphrase
+- **Ed25519 signatures** — agents cannot silently edit `.safe-ify.yaml` (changing deny lists, swapping app UUIDs, or pointing to a different instance) and have safe-ify trust the change
+- **Deny-only permissions** — each config layer can only restrict further, never grant back a denied command
+
+**What safe-ify does NOT protect against:**
+
+A fully malicious process running as the **same OS user** can bypass all of these controls. It can:
+
+- Read `~/.config/safe-ify/config.yaml` directly, extracting API tokens, the passphrase hash, and the encrypted private signing key
+- Replace the public key in global config to forge signatures on a tampered `.safe-ify.yaml`
+- Call the Coolify API directly, bypassing safe-ify entirely
+- Modify the safe-ify binary itself
+
+This is an inherent limitation of same-user process isolation — file permissions (`0600`) protect against *other* users, not against processes running as the same user. safe-ify does not attempt to solve this problem.
+
+**If you need a hard secret boundary**, run the agent as a **different OS user** and ensure:
 - `~/.config/safe-ify/config.yaml` is owned by the human user with `0600` permissions
 - The `safe-ify` binary is not writable by the agent user
 - The agent user can only invoke `safe-ify` as a command, not read its config files
+
+In summary: safe-ify is a **policy enforcement layer**, not a sandbox. It prevents well-behaved agents from accidentally performing dangerous operations. It does not defend against a process that is actively trying to subvert it from the same OS account.
 
 ## Tech stack
 

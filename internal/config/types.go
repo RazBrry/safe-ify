@@ -3,8 +3,10 @@ package config
 // GlobalConfig represents the top-level global configuration stored at
 // ~/.config/safe-ify/config.yaml with 0600 permissions.
 type GlobalConfig struct {
-	Instances map[string]Instance `yaml:"instances"`
-	Defaults  DefaultSettings     `yaml:"defaults"`
+	Instances      map[string]Instance `yaml:"instances"`
+	Defaults       DefaultSettings     `yaml:"defaults"`
+	PassphraseHash string              `yaml:"passphrase_hash,omitempty"`
+	Signing        SigningConfig        `yaml:"signing,omitempty"`
 }
 
 // Instance holds the URL and API token for a single Coolify instance.

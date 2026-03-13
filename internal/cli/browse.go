@@ -51,13 +51,24 @@ func runBrowse(cmd *cobra.Command, args []string) error {
 	}
 
 	// Try to use instance from project config, otherwise prompt.
+	// Signature verification: if it fails, fall through to instance picker.
 	var selectedInstance string
 
 	cwd, _ := os.Getwd()
 	if cwd != "" {
 		if found, findErr := config.FindProjectConfig(cwd); findErr == nil {
-			if projectCfg, loadErr := config.LoadProject(found); loadErr == nil {
-				selectedInstance = projectCfg.Instance
+			sigOK := true
+			if globalCfg.HasSigningKeys() {
+				if pubKey, pkErr := globalCfg.Signing.ParsePublicKey(); pkErr == nil {
+					if config.VerifyProjectSignature(found, pubKey) != nil {
+						sigOK = false
+					}
+				}
+			}
+			if sigOK {
+				if projectCfg, loadErr := config.LoadProject(found); loadErr == nil {
+					selectedInstance = projectCfg.Instance
+				}
 			}
 		}
 	}

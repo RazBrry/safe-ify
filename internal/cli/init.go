@@ -107,6 +107,8 @@ func sanitizeAppName(name string) string {
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
+	defer func() { lastVerifiedPassphrase = "" }()
+
 	if err := requireTTY(); err != nil {
 		return err
 	}
@@ -130,7 +132,14 @@ func runInit(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no instances configured — run `safe-ify auth add` first")
 	}
 
+	// Passphrase gate: init changes project bindings, which is an authorization change.
+	if err := requirePassphrase(globalCfg); err != nil {
+		return err
+	}
+
 	// Step b: determine current directory and load existing project config (if any).
+	// IMPORTANT: if signing is configured, verify the signature before trusting
+	// existing values. A tampered config must not be carried forward and re-signed.
 	cwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("cannot determine current directory: %w", err)
@@ -139,9 +148,31 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	var projectCfg *config.ProjectConfig
 	if _, statErr := os.Stat(outputPath); statErr == nil {
-		projectCfg, err = config.LoadProject(outputPath)
-		if err != nil {
-			return fmt.Errorf("cannot load existing project config: %w", err)
+		if globalCfg.HasSigningKeys() {
+			pubKey, pkErr := globalCfg.Signing.ParsePublicKey()
+			if pkErr != nil {
+				return fmt.Errorf("cannot load signing public key: %w", pkErr)
+			}
+			if sigErr := config.VerifyProjectSignature(outputPath, pubKey); sigErr != nil {
+				fmt.Println(tui.WarningStyle.Render(
+					"Existing .safe-ify.yaml has an invalid or missing signature — it may have been tampered with.",
+				))
+				fmt.Println(tui.WarningStyle.Render(
+					"Discarding existing config. You will configure all apps from scratch.",
+				))
+				// projectCfg stays nil — treated as fresh init.
+			} else {
+				projectCfg, err = config.LoadProject(outputPath)
+				if err != nil {
+					return fmt.Errorf("cannot load existing project config: %w", err)
+				}
+			}
+		} else {
+			// No signing configured — load existing config as-is (legacy/first-time).
+			projectCfg, err = config.LoadProject(outputPath)
+			if err != nil {
+				return fmt.Errorf("cannot load existing project config: %w", err)
+			}
 		}
 	}
 
@@ -331,6 +362,18 @@ func runInit(cmd *cobra.Command, args []string) error {
 
 	if err := config.SaveProject(outputPath, newProjectCfg); err != nil {
 		return fmt.Errorf("cannot save project config: %w", err)
+	}
+
+	// Step h2: sign the project config if signing keys are available.
+	if globalCfg.HasSigningKeys() && lastVerifiedPassphrase != "" {
+		privKey, err := globalCfg.Signing.DecryptPrivateKey(lastVerifiedPassphrase)
+		if err != nil {
+			return fmt.Errorf("cannot decrypt signing key: %w", err)
+		}
+		if err := config.SignProjectConfig(outputPath, privKey); err != nil {
+			return fmt.Errorf("cannot sign project config: %w", err)
+		}
+		fmt.Println(tui.SuccessStyle.Render("Project config signed."))
 	}
 
 	// Step i: print summary.

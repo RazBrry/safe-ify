@@ -97,3 +97,30 @@ func (e *AppAmbiguousError) Error() string {
 		e.AvailableApps,
 	)
 }
+
+// SignatureMissingError is returned when .safe-ify.sig does not exist
+// but signature verification is required.
+type SignatureMissingError struct {
+	ProjectPath string
+}
+
+func (e *SignatureMissingError) Error() string {
+	return fmt.Sprintf(
+		"signature file missing for %q — run `safe-ify init` to sign the project config",
+		e.ProjectPath,
+	)
+}
+
+// SignatureInvalidError is returned when the signature does not match the
+// project config file contents.
+type SignatureInvalidError struct {
+	ProjectPath string
+	Reason      string
+}
+
+func (e *SignatureInvalidError) Error() string {
+	return fmt.Sprintf(
+		"project config %q has an invalid signature (%s) — run `safe-ify init` to re-sign",
+		e.ProjectPath, e.Reason,
+	)
+}
